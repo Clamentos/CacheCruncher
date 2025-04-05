@@ -41,7 +41,6 @@ public class CacheTraceDao extends Dao {
     private static final String SELECT_MINIMAL = "SELECT id,created_at,updated_at,description,name FROM cache_trace WHERE name like ? AND created_at BETWEEN ? AND ? AND updated_at BETWEEN ? AND ?";
 
     private static final String UPDATE = "UPDATE cache_trace SET updated_at = ?, description = ?, name = ?, data = ? WHERE id = ?";
-
     private static final String DELETE_BY_ID = "DELETE FROM cache_trace WHERE id = ?";
 
     ///
@@ -67,7 +66,7 @@ public class CacheTraceDao extends Dao {
     ///..
     public boolean existsById(long id) throws DataAccessException {
 
-        return super.getJdbcTemplate().query(
+        Boolean exists = super.getJdbcTemplate().query(
 
             EXISTS_BY_ID,
             preparedStatement -> preparedStatement.setLong(1, id),
@@ -78,12 +77,14 @@ public class CacheTraceDao extends Dao {
                 return resultSet.getLong(1) == 1L;
             }
         );
+
+        return exists != null && exists.booleanValue();
     }
 
     ///..
     public boolean existsByName(String name) throws DataAccessException {
 
-        return super.getJdbcTemplate().query(
+        Boolean exists = super.getJdbcTemplate().query(
 
             EXISTS_BY_NAME,
             preparedStatement -> preparedStatement.setString(1, name),
@@ -94,6 +95,8 @@ public class CacheTraceDao extends Dao {
                 return resultSet.getLong(1) == 1L;
             }
         );
+
+        return exists != null && exists.booleanValue(); 
     }
 
     ///..
@@ -161,11 +164,7 @@ public class CacheTraceDao extends Dao {
     ///.
     private CacheTrace mapResultSetSingle(ResultSet resultSet) throws SQLException {
 
-        if(resultSet.next()) {
-
-            return constructFromResultSet(resultSet, true);
-        }
-
+        if(resultSet.next()) return constructFromResultSet(resultSet, true);
         return null;
     }
 

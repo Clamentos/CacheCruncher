@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS log (
                                 'TRACE',
                                 'DEBUG',
                                 'INFO',
-                                'WARNING',
+                                'WARN',
                                 'ERROR'
                             )                NOT NULL
 );

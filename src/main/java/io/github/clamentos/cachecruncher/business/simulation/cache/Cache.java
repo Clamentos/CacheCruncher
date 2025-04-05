@@ -16,11 +16,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 ///
-public final class Cache {
+public class Cache {
 
     ///
-    private final int lineSize;
-    private final int numSets;
+    private final int ramAccessTime;
+    private final int accessTime;
+    private final int lineSizeExp;
     private final ReplacementPolicy replacementPolicy;
     private final List<List<CacheLine>> cacheLines;
     private final Cache nextLevelCache;
@@ -30,14 +31,25 @@ public final class Cache {
 
     ///..
     private final int indexMask;
+    private final int tagShiftAmount;
 
     ///
-    public Cache(int numSets, int lineSize, int associativity, ReplacementPolicyType replacementPolicyType, Cache nextLevelCache) {
+    public Cache(
 
-        this.lineSize = lineSize;
-        this.numSets = numSets;
+        int ramAccessTime,
+        int accessTime,
+        int numSetsExp,
+        int lineSizeExp,
+        int associativity,
+        ReplacementPolicyType replacementPolicyType,
+        Cache nextLevelCache
+    ) {
 
-        int numSetsPow = numSets > 0 ? 2 << (numSets - 1) : 1;
+        this.ramAccessTime = ramAccessTime;
+        this.accessTime = accessTime;
+        this.lineSizeExp = lineSizeExp;
+
+        int numSetsPow = numSetsExp > 0 ? 2 << (numSetsExp - 1) : 1;
         cacheLines = new ArrayList<>(numSetsPow);
 
         for(int i = 0; i < numSetsPow; i++) {
@@ -56,15 +68,15 @@ public final class Cache {
 
             case NOOP: replacementPolicy = new NoOpReplacementPolicy(); break;
             case RANDOM: replacementPolicy = new RandomReplacementPolicy(associativity); break;
-            case LRU: replacementPolicy = new LruReplacementPolicy(associativity, numSets); break;
+            case LRU: replacementPolicy = new LruReplacementPolicy(associativity, numSetsExp); break;
 
-            default: replacementPolicy = null;
+            default: replacementPolicy = new NoOpReplacementPolicy(); break;
         }
 
         this.nextLevelCache = nextLevelCache;
         simulationReportDto = new CacheSimulationReportDto();
 
-        simulationReportDto.setNextLevelCacheReport(
+        simulationReportDto.setNextLevelReport(
 
             nextLevelCache == null ?
             new SimulationReportDto() :
@@ -73,66 +85,54 @@ public final class Cache {
 
         int indexMaskTmp = 0;
 
-        for(int i = 0; i < numSets; i++) {
+        for(int i = 0; i < numSetsExp; i++) {
 
             indexMaskTmp |= (1 << i);
         }
 
         indexMask = indexMaskTmp;
+        tagShiftAmount = numSetsExp + lineSizeExp;
     }
 
     ///
-    public void read(int address) {
+    public long read(int address) {
 
-        simulationReportDto.setReadRequests(simulationReportDto.getReadRequests() + 1);
-
-        boolean hit = false;
+        long cycleCounter = 0;
         int index = this.extractIndex(address);
-        List<CacheLine> cacheSet = cacheLines.get(index);
 
-        for(int i = 0; i < cacheSet.size(); i++) {
-
-            int tagFromAddress = this.extractTag(address);
-            CacheLine cacheLine = cacheSet.get(i);
-
-            if(cacheLine.isValid() && cacheLine.getTag() == tagFromAddress) {
-
-                hit = true;
-                replacementPolicy.update(index, i);
-
-                break;
-            }
-        }
-
-        if(!hit) {
+        if(!lookup(address, index, false)) {
 
             simulationReportDto.setReadMisses(simulationReportDto.getReadMisses() + 1);
 
             if(nextLevelCache != null) {
 
-                nextLevelCache.read(address);
+                cycleCounter += nextLevelCache.read(address);
             }
 
             else {
 
-                SimulationReportDto ramReport = simulationReportDto.getNextLevelCacheReport();
+                SimulationReportDto ramReport = simulationReportDto.getNextLevelReport();
+
                 ramReport.setReadRequests(ramReport.getReadRequests() + 1);
+                cycleCounter += ramAccessTime;
             }
 
             int victimWay = replacementPolicy.getVictim(index);
-            CacheLine victim = cacheSet.get(victimWay);
+            CacheLine victim = cacheLines.get(index).get(victimWay);
 
             if(victim.isValid() && victim.isDirty()) {
 
                 if(nextLevelCache != null) {
 
-                    nextLevelCache.write(address);
+                    cycleCounter += nextLevelCache.write(address);
                 }
 
                 else {
 
-                    SimulationReportDto ramReport = simulationReportDto.getNextLevelCacheReport();
+                    SimulationReportDto ramReport = simulationReportDto.getNextLevelReport();
+
                     ramReport.setWriteRequests(ramReport.getWriteRequests() + 1);
+                    cycleCounter += ramAccessTime;
                 }
             }
 
@@ -142,64 +142,52 @@ public final class Cache {
             }
 
             victim.setDirty(false);
-            victim.setTag(this.extractTag(address));
+            victim.setTag(address >> tagShiftAmount);
             replacementPolicy.update(index, victimWay);
         }
+
+        return cycleCounter;
     }
 
     ///..
-    public void write(int address) {
+    public long write(int address) {
 
-        simulationReportDto.setWriteRequests(simulationReportDto.getWriteRequests() + 1);
-
-        boolean hit = false;
+        long cycleCounter = accessTime;
         int index = this.extractIndex(address);
-        List<CacheLine> cacheSet = cacheLines.get(index);
 
-        for(int i = 0; i < cacheSet.size(); i++) {
-
-            int tagFromAddress = this.extractTag(address);
-            CacheLine cacheLine = cacheSet.get(i);
-
-            if(cacheLine.isValid() && cacheLine.getTag() == tagFromAddress) {
-
-                hit = true;
-                cacheLine.setDirty(true);
-                replacementPolicy.update(index, i);
-
-                break;
-            }
-        }
-
-        if(!hit) {
+        if(!lookup(address, index, true)) {
 
             simulationReportDto.setWriteMisses(simulationReportDto.getWriteMisses() + 1);
 
             if(nextLevelCache != null) {
 
-                nextLevelCache.read(address);
+                cycleCounter += nextLevelCache.read(address);
             }
 
             else {
 
-                SimulationReportDto ramReport = simulationReportDto.getNextLevelCacheReport();
+                SimulationReportDto ramReport = simulationReportDto.getNextLevelReport();
+
                 ramReport.setReadRequests(ramReport.getReadRequests() + 1);
+                cycleCounter += ramAccessTime;
             }
 
             int victimWay = replacementPolicy.getVictim(index);
-            CacheLine victim = cacheSet.get(victimWay);
+            CacheLine victim = cacheLines.get(index).get(victimWay);
 
             if(victim.isValid() && victim.isDirty()) {
 
                 if(nextLevelCache != null) {
 
-                    nextLevelCache.write(address);
+                    cycleCounter += nextLevelCache.write(address);
                 }
 
                 else {
 
-                    SimulationReportDto ramReport = simulationReportDto.getNextLevelCacheReport();
+                    SimulationReportDto ramReport = simulationReportDto.getNextLevelReport();
+
                     ramReport.setWriteRequests(ramReport.getWriteRequests() + 1);
+                    cycleCounter += ramAccessTime;
                 }
             }
 
@@ -209,9 +197,31 @@ public final class Cache {
             }
 
             victim.setDirty(true);
-            victim.setTag(this.extractTag(address));
+            victim.setTag(address >> tagShiftAmount);
             replacementPolicy.update(index, victimWay);
         }
+
+        return cycleCounter;
+    }
+
+    ///..
+    public long prefetch(int address) {
+
+        // ...
+        return 1;
+    }
+
+    ///..
+    public long flush() {
+
+        // ...
+        return 1;
+    }
+
+    ///..
+    public long noop() {
+
+        return 1;
     }
 
     ///..
@@ -221,16 +231,35 @@ public final class Cache {
     }
 
     ///.
-    private int extractIndex(int address) {
+    private boolean lookup(int address, int index, boolean isWriteMode) {
 
-        int tmp = address >> lineSize;
-        return tmp & indexMask;
+        if(isWriteMode) simulationReportDto.setWriteRequests(simulationReportDto.getWriteRequests() + 1);
+        else simulationReportDto.setReadRequests(simulationReportDto.getReadRequests() + 1);
+
+        List<CacheLine> cacheSet = cacheLines.get(index);
+
+        for(int i = 0; i < cacheSet.size(); i++) {
+
+            int tagFromAddress = address >> tagShiftAmount;
+            CacheLine cacheLine = cacheSet.get(i);
+
+            if(cacheLine.isValid() && cacheLine.getTag() == tagFromAddress) {
+
+                if(isWriteMode) cacheLine.setDirty(true);
+                replacementPolicy.update(index, i);
+
+                return true;
+            }
+        }
+
+        return false;
     }
 
     ///..
-    private int extractTag(int address) {
+    private int extractIndex(int address) {
 
-        return address >> (numSets + lineSize);
+        int tmp = address >> lineSizeExp;
+        return tmp & indexMask;
     }
 
     ///

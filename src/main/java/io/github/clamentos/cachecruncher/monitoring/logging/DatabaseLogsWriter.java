@@ -78,7 +78,7 @@ public class DatabaseLogsWriter {
     }
 
     ///
-    @Scheduled(cron = "0 */5 * * * *")
+    @Scheduled(cron = "0 */5 * * * *", scheduler = "taskScheduler")
     protected void dump() {
 
         log.info("Starting logs dumping task...");

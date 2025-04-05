@@ -59,9 +59,9 @@ public class LogDao extends Dao {
 
     ///
     @Transactional
-    public void insert(Collection<Log> logs) throws DataAccessException, NullPointerException {
+    public void insert(Collection<Log> logs) throws DataAccessException {
 
-        if(!logs.isEmpty()) {
+        if(logs != null && !logs.isEmpty()) {
 
             super.getJdbcTemplate().batchUpdate(INSERT_SQL, logs, super.getBatchSize(), (preparedStatement, log) -> {
 

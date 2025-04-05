@@ -16,7 +16,7 @@ public final class CacheSimulationReportDto extends SimulationReportDto {
     private long writeMisses;
 
     ///..
-    private SimulationReportDto nextLevelCacheReport;
+    private SimulationReportDto nextLevelReport;
 
     ///
 }

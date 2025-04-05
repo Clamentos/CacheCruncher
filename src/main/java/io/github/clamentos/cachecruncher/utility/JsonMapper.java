@@ -26,7 +26,7 @@ public final class JsonMapper {
     private JsonMapper() {}
 
     ///
-    public static String serialize(Object object, ObjectMapper objectMapper) throws IllegalArgumentException {
+    public static String serialize(Object object, ObjectMapper objectMapper) throws IllegalArgumentException, NullPointerException {
 
         try {
 
@@ -46,7 +46,8 @@ public final class JsonMapper {
     }
 
     ///..
-    public static <T> T deserialize(String object, TypeReference<T> type, ObjectMapper objectMapper) throws IllegalArgumentException {
+    public static <T> T deserialize(String object, TypeReference<T> type, ObjectMapper objectMapper)
+    throws IllegalArgumentException, NullPointerException {
 
         try {
 

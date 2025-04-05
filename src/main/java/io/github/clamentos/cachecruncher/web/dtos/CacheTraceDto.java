@@ -1,27 +1,47 @@
 package io.github.clamentos.cachecruncher.web.dtos;
 
 ///
-import lombok.AllArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+///.
 import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 ///
-@AllArgsConstructor
-@NoArgsConstructor
 @Getter
-@Setter
+@JsonIgnoreProperties(ignoreUnknown = false)
 
 ///
 public final class CacheTraceDto {
 
     ///
-    private Long id;
-    private String name;
-    private String description;
-    private Long createdAt;
-    private Long updatedAt;
-    private CacheTraceBodyDto data;
+    private final Long id;
+    private final String name;
+    private final String description;
+    private final Long createdAt;
+    private final Long updatedAt;
+    private final CacheTraceBodyDto data;
+
+    ///
+    @JsonCreator
+    public CacheTraceDto(
+
+        @JsonProperty("id") Long id,
+        @JsonProperty("name") String name,
+        @JsonProperty("description") String description,
+        @JsonProperty("createdAt") Long createdAt,
+        @JsonProperty("updatedAt") Long updatedAt,
+        @JsonProperty("data") CacheTraceBodyDto data
+    ) {
+
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+        this.data = data;
+    }
 
     ///
 }
