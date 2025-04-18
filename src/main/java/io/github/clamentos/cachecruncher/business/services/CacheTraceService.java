@@ -6,7 +6,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 ///..
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.github.clamentos.cachecruncher.business.validation.CacheTraceValidator;
 ///.
+import io.github.clamentos.cachecruncher.business.validation.SimulationArgumentsValidator;
+
+///..
 import io.github.clamentos.cachecruncher.error.ErrorCode;
 import io.github.clamentos.cachecruncher.error.ErrorFactory;
 
@@ -14,7 +18,7 @@ import io.github.clamentos.cachecruncher.error.ErrorFactory;
 import io.github.clamentos.cachecruncher.error.exceptions.EntityAlreadyExistsException;
 import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundException;
 import io.github.clamentos.cachecruncher.error.exceptions.SimulationException;
-
+import io.github.clamentos.cachecruncher.error.exceptions.TooManySimulationsException;
 ///..
 import io.github.clamentos.cachecruncher.persistence.daos.CacheTraceDao;
 
@@ -25,11 +29,15 @@ import io.github.clamentos.cachecruncher.persistence.entities.CacheTrace;
 import io.github.clamentos.cachecruncher.utility.JsonMapper;
 
 ///..
-import io.github.clamentos.cachecruncher.web.dtos.CacheConfigurationDto;
-import io.github.clamentos.cachecruncher.web.dtos.CacheTraceBodyDto;
-import io.github.clamentos.cachecruncher.web.dtos.CacheTraceDto;
-import io.github.clamentos.cachecruncher.web.dtos.SimulationArgumentsDto;
-import io.github.clamentos.cachecruncher.web.dtos.SimulationReportSummaryDto;
+import io.github.clamentos.cachecruncher.web.dtos.report.CacheSimulationReportSummaryDto;
+
+///..
+import io.github.clamentos.cachecruncher.web.dtos.simulation.CacheConfigurationDto;
+import io.github.clamentos.cachecruncher.web.dtos.simulation.CacheSimulationArgumentsDto;
+
+///..
+import io.github.clamentos.cachecruncher.web.dtos.trace.CacheTraceBodyDto;
+import io.github.clamentos.cachecruncher.web.dtos.trace.CacheTraceDto;
 
 ///.
 import java.util.ArrayList;
@@ -39,7 +47,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 ///..
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
 
 ///.
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,10 +74,17 @@ import lombok.extern.slf4j.Slf4j;
 public class CacheTraceService {
 
     ///
-    private final DtoValidator dtoValidator;
+    private final SimulationArgumentsValidator simulationArgumentsValidator;
+    private final CacheTraceValidator cacheTraceValidator;
+
+    ///..
     private final CacheSimulationService cacheSimulationService;
     private final CacheTraceDao cacheTraceDao;
     private final ObjectMapper objectMapper;
+
+    ///..
+    private final AtomicLong completedSimulations;
+    private final AtomicLong rejectedSimulations;
 
     ///..
     private final TypeReference<CacheTraceBodyDto> cacheTraceBodyDtoType;
@@ -76,17 +93,21 @@ public class CacheTraceService {
     @Autowired
     public CacheTraceService(
 
-        DtoValidator dtoValidator,
+        SimulationArgumentsValidator simulationArgumentsValidator,
+        CacheTraceValidator cacheTraceValidator,
         CacheSimulationService cacheSimulationService,
         CacheTraceDao cacheTraceDao,
         ObjectMapper objectMapper
     ) {
 
-        this.dtoValidator = dtoValidator;
+        this.simulationArgumentsValidator = simulationArgumentsValidator;
+        this.cacheTraceValidator = cacheTraceValidator;
         this.cacheSimulationService = cacheSimulationService;
         this.cacheTraceDao = cacheTraceDao;
         this.objectMapper = objectMapper;
 
+        completedSimulations = new AtomicLong();
+        rejectedSimulations = new AtomicLong();
         cacheTraceBodyDtoType = new TypeReference<CacheTraceBodyDto>(){};
     }
 
@@ -95,7 +116,7 @@ public class CacheTraceService {
     public void create(CacheTraceDto cacheTraceDto)
     throws DataAccessException, EntityAlreadyExistsException, IllegalArgumentException {
 
-        dtoValidator.validateForCreate(cacheTraceDto);
+        cacheTraceValidator.validateForCreate(cacheTraceDto);
 
         if(cacheTraceDao.existsByName(cacheTraceDto.getName())) {
 
@@ -184,9 +205,10 @@ public class CacheTraceService {
 
     ///..
     @Transactional
-    public void update(CacheTraceDto cacheTraceDto) throws DataAccessException, EntityNotFoundException, IllegalArgumentException {
+    public void update(CacheTraceDto cacheTraceDto)
+    throws DataAccessException, EntityAlreadyExistsException, EntityNotFoundException, IllegalArgumentException {
 
-        dtoValidator.validateForUpdate(cacheTraceDto);
+        cacheTraceValidator.validateForUpdate(cacheTraceDto);
         CacheTrace entity = cacheTraceDao.selectById(cacheTraceDto.getId());
 
         if(entity == null) {
@@ -232,11 +254,11 @@ public class CacheTraceService {
     }
 
     ///..
-    public Map<String, Map<String, SimulationReportSummaryDto>> simulate(SimulationArgumentsDto simulationArgumentsDto)
+    public Map<String, Map<String, CacheSimulationReportSummaryDto>> simulate(CacheSimulationArgumentsDto simulationArgumentsDto)
     throws DataAccessException, EntityNotFoundException, IllegalArgumentException, SimulationException {
 
-        dtoValidator.validate(simulationArgumentsDto);
-        Map<String, Map<String, SimulationReportSummaryDto>> combinedReport = new LinkedHashMap<>();
+        simulationArgumentsValidator.validate(simulationArgumentsDto);
+        Map<String, Map<String, CacheSimulationReportSummaryDto>> combinedReport = new LinkedHashMap<>();
 
         for(Long traceId : simulationArgumentsDto.getTraceIds()) {
 
@@ -254,27 +276,26 @@ public class CacheTraceService {
 
             combinedReport.put(entity.getName(), new LinkedHashMap<>());
             CacheTraceBodyDto trace = JsonMapper.deserialize(entity.getData(), cacheTraceBodyDtoType, objectMapper);
-            List<CompletableFuture<Entry<String, SimulationReportSummaryDto>>> simulations = new ArrayList<>();
-
-            for(CacheConfigurationDto cacheConfiguration : simulationArgumentsDto.getCacheConfigurations()) {
-
-                simulations.add(cacheSimulationService.simulate(
-
-                    simulationArgumentsDto.getRamAccessTime(),
-                    simulationArgumentsDto.getSimulationFlags(),
-                    cacheConfiguration,
-                    trace
-                ));
-            }
+            List<Future<Entry<String, CacheSimulationReportSummaryDto>>> simulations = new ArrayList<>();
 
             try {
 
-                simulations.forEach(CompletableFuture::join);
+                for(CacheConfigurationDto cacheConfiguration : simulationArgumentsDto.getCacheConfigurations()) {
 
-                for(CompletableFuture<Entry<String, SimulationReportSummaryDto>> simulation : simulations) {
+                    simulations.add(cacheSimulationService.simulate(
+    
+                        simulationArgumentsDto.getRamAccessTime(),
+                        simulationArgumentsDto.getSimulationFlags(),
+                        cacheConfiguration,
+                        trace
+                    ));
+                }
 
-                    Entry<String, SimulationReportSummaryDto> result = simulation.get();
+                for(Future<Entry<String, CacheSimulationReportSummaryDto>> simulation : simulations) {
+
+                    Entry<String, CacheSimulationReportSummaryDto> result = simulation.get();
                     combinedReport.get(entity.getName()).put(result.getKey(), result.getValue());
+                    completedSimulations.incrementAndGet();
                 }
             }
 
@@ -284,8 +305,20 @@ public class CacheTraceService {
                 createSimulationException(exc);
             }
 
+            catch(RejectedExecutionException exc) {
+
+                rejectedSimulations.incrementAndGet();
+
+                throw new TooManySimulationsException(ErrorFactory.create(
+
+                    ErrorCode.SERVICE_TEMPORARILY_UNAVAILABLE,
+                    "CacheTraceService.simulate -> Simulation queue full"
+                ));
+            }
+
             catch(Exception exc) {
 
+                exc.printStackTrace();
                 throw createSimulationException(exc);
             }
         }
@@ -294,6 +327,18 @@ public class CacheTraceService {
     }
 
     ///..
+    public long getCompletedSimulationCount() {
+
+        return completedSimulations.get();
+    }
+
+    ///..
+    public long getRejectedSimulationCount() {
+
+        return rejectedSimulations.get();
+    }
+
+    ///.
     private SimulationException createSimulationException(Exception exc) {
 
         return new SimulationException(ErrorFactory.create(

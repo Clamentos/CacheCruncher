@@ -1,4 +1,4 @@
-package io.github.clamentos.cachecruncher.web.dtos;
+package io.github.clamentos.cachecruncher.web.dtos.report;
 
 ///
 import lombok.AllArgsConstructor;
@@ -9,7 +9,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class SimulationReportSummaryDto {
+public final class CacheSimulationReportSummaryDto {
 
     ///
     private final long beginTimestamp;

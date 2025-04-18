@@ -14,7 +14,7 @@ public class CacheLine {
     ///
     private boolean valid;
     private boolean dirty;
-    private int tag;
+    private long tag;
 
     ///
 }

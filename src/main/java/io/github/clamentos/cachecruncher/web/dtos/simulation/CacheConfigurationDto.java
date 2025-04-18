@@ -1,4 +1,4 @@
-package io.github.clamentos.cachecruncher.web.dtos;
+package io.github.clamentos.cachecruncher.web.dtos.simulation;
 
 ///
 import com.fasterxml.jackson.annotation.JsonCreator;

@@ -8,8 +8,8 @@ import io.github.clamentos.cachecruncher.business.simulation.replacement.Replace
 import io.github.clamentos.cachecruncher.business.simulation.replacement.ReplacementPolicyType;
 
 ///..
-import io.github.clamentos.cachecruncher.web.dtos.CacheSimulationReportDto;
-import io.github.clamentos.cachecruncher.web.dtos.SimulationReportDto;
+import io.github.clamentos.cachecruncher.web.dtos.report.CacheSimulationReportDto;
+import io.github.clamentos.cachecruncher.web.dtos.report.MemorySimulationReportDto;
 
 ///.
 import java.util.ArrayList;
@@ -23,14 +23,14 @@ public class Cache {
     private final int accessTime;
     private final int lineSizeExp;
     private final ReplacementPolicy replacementPolicy;
-    private final List<List<CacheLine>> cacheLines;
+    private final List<List<CacheLine>> cache;
     private final Cache nextLevelCache;
 
     ///..
     private final CacheSimulationReportDto simulationReportDto;
 
     ///..
-    private final int indexMask;
+    private final long indexMask;
     private final int tagShiftAmount;
 
     ///
@@ -50,7 +50,7 @@ public class Cache {
         this.lineSizeExp = lineSizeExp;
 
         int numSetsPow = numSetsExp > 0 ? 2 << (numSetsExp - 1) : 1;
-        cacheLines = new ArrayList<>(numSetsPow);
+        cache = new ArrayList<>(numSetsPow);
 
         for(int i = 0; i < numSetsPow; i++) {
 
@@ -61,7 +61,7 @@ public class Cache {
                 ways.add(new CacheLine());
             }
 
-            cacheLines.add(ways);
+            cache.add(ways);
         }
 
         switch(replacementPolicyType) {
@@ -79,11 +79,11 @@ public class Cache {
         simulationReportDto.setNextLevelReport(
 
             nextLevelCache == null ?
-            new SimulationReportDto() :
+            new MemorySimulationReportDto() :
             nextLevelCache.getSimulationReport()
         );
 
-        int indexMaskTmp = 0;
+        long indexMaskTmp = 0;
 
         for(int i = 0; i < numSetsExp; i++) {
 
@@ -95,7 +95,7 @@ public class Cache {
     }
 
     ///
-    public long read(int address) {
+    public long read(long address) {
 
         long cycleCounter = 0;
         int index = this.extractIndex(address);
@@ -111,14 +111,14 @@ public class Cache {
 
             else {
 
-                SimulationReportDto ramReport = simulationReportDto.getNextLevelReport();
+                MemorySimulationReportDto ramReport = simulationReportDto.getNextLevelReport();
 
                 ramReport.setReadRequests(ramReport.getReadRequests() + 1);
                 cycleCounter += ramAccessTime;
             }
 
             int victimWay = replacementPolicy.getVictim(index);
-            CacheLine victim = cacheLines.get(index).get(victimWay);
+            CacheLine victim = cache.get(index).get(victimWay);
 
             if(victim.isValid() && victim.isDirty()) {
 
@@ -129,7 +129,7 @@ public class Cache {
 
                 else {
 
-                    SimulationReportDto ramReport = simulationReportDto.getNextLevelReport();
+                    MemorySimulationReportDto ramReport = simulationReportDto.getNextLevelReport();
 
                     ramReport.setWriteRequests(ramReport.getWriteRequests() + 1);
                     cycleCounter += ramAccessTime;
@@ -150,7 +150,7 @@ public class Cache {
     }
 
     ///..
-    public long write(int address) {
+    public long write(long address) {
 
         long cycleCounter = accessTime;
         int index = this.extractIndex(address);
@@ -166,14 +166,14 @@ public class Cache {
 
             else {
 
-                SimulationReportDto ramReport = simulationReportDto.getNextLevelReport();
+                MemorySimulationReportDto ramReport = simulationReportDto.getNextLevelReport();
 
                 ramReport.setReadRequests(ramReport.getReadRequests() + 1);
                 cycleCounter += ramAccessTime;
             }
 
             int victimWay = replacementPolicy.getVictim(index);
-            CacheLine victim = cacheLines.get(index).get(victimWay);
+            CacheLine victim = cache.get(index).get(victimWay);
 
             if(victim.isValid() && victim.isDirty()) {
 
@@ -184,7 +184,7 @@ public class Cache {
 
                 else {
 
-                    SimulationReportDto ramReport = simulationReportDto.getNextLevelReport();
+                    MemorySimulationReportDto ramReport = simulationReportDto.getNextLevelReport();
 
                     ramReport.setWriteRequests(ramReport.getWriteRequests() + 1);
                     cycleCounter += ramAccessTime;
@@ -212,6 +212,12 @@ public class Cache {
     }
 
     ///..
+    public long noop() {
+
+        return 1;
+    }
+
+    ///..
     public long flush() {
 
         // ...
@@ -219,8 +225,9 @@ public class Cache {
     }
 
     ///..
-    public long noop() {
+    public long invalidate(long address) {
 
+        // ...
         return 1;
     }
 
@@ -231,16 +238,16 @@ public class Cache {
     }
 
     ///.
-    private boolean lookup(int address, int index, boolean isWriteMode) {
+    private boolean lookup(long address, int index, boolean isWriteMode) {
 
         if(isWriteMode) simulationReportDto.setWriteRequests(simulationReportDto.getWriteRequests() + 1);
         else simulationReportDto.setReadRequests(simulationReportDto.getReadRequests() + 1);
 
-        List<CacheLine> cacheSet = cacheLines.get(index);
+        List<CacheLine> cacheSet = cache.get(index);
 
         for(int i = 0; i < cacheSet.size(); i++) {
 
-            int tagFromAddress = address >> tagShiftAmount;
+            long tagFromAddress = address >> tagShiftAmount;
             CacheLine cacheLine = cacheSet.get(i);
 
             if(cacheLine.isValid() && cacheLine.getTag() == tagFromAddress) {
@@ -256,10 +263,10 @@ public class Cache {
     }
 
     ///..
-    private int extractIndex(int address) {
+    private int extractIndex(long address) {
 
-        int tmp = address >> lineSizeExp;
-        return tmp & indexMask;
+        long shifted = address >> lineSizeExp;
+        return (int) (shifted & indexMask);
     }
 
     ///

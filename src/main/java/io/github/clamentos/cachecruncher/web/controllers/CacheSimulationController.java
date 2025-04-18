@@ -8,8 +8,10 @@ import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundExceptio
 import io.github.clamentos.cachecruncher.error.exceptions.SimulationException;
 
 ///..
-import io.github.clamentos.cachecruncher.web.dtos.SimulationArgumentsDto;
-import io.github.clamentos.cachecruncher.web.dtos.SimulationReportSummaryDto;
+import io.github.clamentos.cachecruncher.web.dtos.report.CacheSimulationReportSummaryDto;
+
+///..
+import io.github.clamentos.cachecruncher.web.dtos.simulation.CacheSimulationArgumentsDto;
 
 ///.
 import java.util.Map;
@@ -48,9 +50,9 @@ public class CacheSimulationController {
 
     ///
     @GetMapping(consumes = "application/json", produces = "application/json")
-    public ResponseEntity<Map<String, Map<String, SimulationReportSummaryDto>>> simulate(
+    public ResponseEntity<Map<String, Map<String, CacheSimulationReportSummaryDto>>> simulate(
 
-        @RequestBody SimulationArgumentsDto simulationArgumentsDto
+        @RequestBody CacheSimulationArgumentsDto simulationArgumentsDto
 
     ) throws DataAccessException, EntityNotFoundException, IllegalArgumentException, SimulationException {
 

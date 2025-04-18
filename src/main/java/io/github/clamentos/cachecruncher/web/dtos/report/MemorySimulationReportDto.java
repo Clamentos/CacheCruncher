@@ -1,4 +1,4 @@
-package io.github.clamentos.cachecruncher.web.dtos;
+package io.github.clamentos.cachecruncher.web.dtos.report;
 
 ///
 import lombok.Getter;
@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 
 ///
-public class SimulationReportDto {
+public class MemorySimulationReportDto {
 
     ///
     private long readRequests;

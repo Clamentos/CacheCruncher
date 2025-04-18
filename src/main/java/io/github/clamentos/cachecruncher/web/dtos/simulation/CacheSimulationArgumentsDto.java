@@ -1,4 +1,4 @@
-package io.github.clamentos.cachecruncher.web.dtos;
+package io.github.clamentos.cachecruncher.web.dtos.simulation;
 
 ///
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -19,7 +19,7 @@ import lombok.Getter;
 @JsonIgnoreProperties(ignoreUnknown = false)
 
 ///
-public final class SimulationArgumentsDto {
+public final class CacheSimulationArgumentsDto {
 
     ///
     private final Integer ramAccessTime;
@@ -29,7 +29,7 @@ public final class SimulationArgumentsDto {
 
     ///
     @JsonCreator
-    public SimulationArgumentsDto(
+    public CacheSimulationArgumentsDto(
 
         @JsonProperty("ramAccessTime") Integer ramAccessTime,
         @JsonProperty("traceIds") Set<Long> traceIds,

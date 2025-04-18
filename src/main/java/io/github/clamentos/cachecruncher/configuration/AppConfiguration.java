@@ -50,6 +50,7 @@ public class AppConfiguration {
         executor.setQueueCapacity(environment.getProperty("cache-cruncher.simulation.executor_pool.max_queue_size", Integer.class, 4096));
         executor.setThreadNamePrefix("CacheCruncherSimulator-");
         executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setVirtualThreads(false);
 
         executor.setAwaitTerminationSeconds(environment.getProperty(
 

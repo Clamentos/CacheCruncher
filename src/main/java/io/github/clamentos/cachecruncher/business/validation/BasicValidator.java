@@ -1,4 +1,4 @@
-package io.github.clamentos.cachecruncher.business.services;
+package io.github.clamentos.cachecruncher.business.validation;
 
 import java.util.Collection;
 
@@ -88,14 +88,14 @@ public abstract class BasicValidator {
     }
 
     ///..
-    public void requirePositive(Integer val, String name) throws IllegalArgumentException {
+    public void requireGreaterOrEqual(Integer val, Integer other, String name) throws IllegalArgumentException {
 
-        if(val == null || val.compareTo(0) <= 0) {
+        if(val == null || val.compareTo(other) < 0) {
 
             throw new IllegalArgumentException(ErrorFactory.create(
 
                 ErrorCode.VALIDATOR_BAD_FORMAT,
-                "BasicValidator.requirePositive -> Argument cannot be null or less than zero",
+                "BasicValidator.requirePositive -> Argument cannot be null or less than " + other,
                 name
             ));
         }

@@ -143,7 +143,7 @@ public class DatabaseLogsWriter {
         log.info("Logs dumping task completed, written {} logs over {} files", totalLogsWritten[0], totalFilesCleaned);
     }
 
-    ///..
+    ///.
     private void write(Collection<String> lines) throws DataAccessException, NullPointerException, NumberFormatException {
 
         List<Log> logs = new ArrayList<>(lines.size());

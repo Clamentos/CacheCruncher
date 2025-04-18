@@ -8,7 +8,7 @@ import io.github.clamentos.cachecruncher.error.exceptions.EntityAlreadyExistsExc
 import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundException;
 
 ///..
-import io.github.clamentos.cachecruncher.web.dtos.CacheTraceDto;
+import io.github.clamentos.cachecruncher.web.dtos.trace.CacheTraceDto;
 
 ///.
 import java.util.List;
