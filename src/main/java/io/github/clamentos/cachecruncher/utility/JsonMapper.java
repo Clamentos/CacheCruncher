@@ -1,10 +1,6 @@
 package io.github.clamentos.cachecruncher.utility;
 
 ///
-import io.github.clamentos.cachecruncher.error.ErrorCode;
-import io.github.clamentos.cachecruncher.error.ErrorFactory;
-
-///.
 import com.fasterxml.jackson.core.JsonProcessingException;
 
 ///..
@@ -14,19 +10,37 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 ///.
+import io.github.clamentos.cachecruncher.error.ErrorCode;
+import io.github.clamentos.cachecruncher.error.ErrorFactory;
+
+///.
 import lombok.extern.slf4j.Slf4j;
 
+///.
+import org.springframework.beans.factory.annotation.Autowired;
+
+///.
+import org.springframework.stereotype.Component;
+
 ///
+@Component
 @Slf4j
 
 ///
-public final class JsonMapper {
+public class JsonMapper {
 
     ///
-    private JsonMapper() {}
+    private final ObjectMapper objectMapper;
 
     ///
-    public static String serialize(Object object, ObjectMapper objectMapper) throws IllegalArgumentException, NullPointerException {
+    @Autowired
+    public JsonMapper(ObjectMapper objectMapper) {
+
+        this.objectMapper = objectMapper;
+    }
+
+    ///
+    public String serialize(Object object) throws IllegalArgumentException {
 
         try {
 
@@ -46,8 +60,12 @@ public final class JsonMapper {
     }
 
     ///..
-    public static <T> T deserialize(String object, TypeReference<T> type, ObjectMapper objectMapper)
-    throws IllegalArgumentException, NullPointerException {
+    public <T> T deserialize(String object, TypeReference<T> type) throws IllegalArgumentException {
+
+        if(object == null || type == null) {
+
+            throw new IllegalArgumentException("Arguments cannot be null");
+        }
 
         try {
 

@@ -3,11 +3,8 @@ package io.github.clamentos.cachecruncher.business.services;
 ///
 import com.fasterxml.jackson.core.type.TypeReference;
 
-///..
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import io.github.clamentos.cachecruncher.business.validation.CacheTraceValidator;
 ///.
+import io.github.clamentos.cachecruncher.business.validation.CacheTraceValidator;
 import io.github.clamentos.cachecruncher.business.validation.SimulationArgumentsValidator;
 
 ///..
@@ -15,10 +12,10 @@ import io.github.clamentos.cachecruncher.error.ErrorCode;
 import io.github.clamentos.cachecruncher.error.ErrorFactory;
 
 ///..
-import io.github.clamentos.cachecruncher.error.exceptions.EntityAlreadyExistsException;
 import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundException;
 import io.github.clamentos.cachecruncher.error.exceptions.SimulationException;
 import io.github.clamentos.cachecruncher.error.exceptions.TooManySimulationsException;
+
 ///..
 import io.github.clamentos.cachecruncher.persistence.daos.CacheTraceDao;
 
@@ -27,6 +24,7 @@ import io.github.clamentos.cachecruncher.persistence.entities.CacheTrace;
 
 ///..
 import io.github.clamentos.cachecruncher.utility.JsonMapper;
+import io.github.clamentos.cachecruncher.utility.Pair;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.report.CacheSimulationReportSummaryDto;
@@ -44,11 +42,12 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 ///..
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
+
+///..
 import java.util.concurrent.atomic.AtomicLong;
 
 ///.
@@ -79,8 +78,12 @@ public class CacheTraceService {
 
     ///..
     private final CacheSimulationService cacheSimulationService;
+
+    ///..
     private final CacheTraceDao cacheTraceDao;
-    private final ObjectMapper objectMapper;
+
+    ///..
+    private final JsonMapper jsonMapper;
 
     ///..
     private final AtomicLong completedSimulations;
@@ -97,63 +100,52 @@ public class CacheTraceService {
         CacheTraceValidator cacheTraceValidator,
         CacheSimulationService cacheSimulationService,
         CacheTraceDao cacheTraceDao,
-        ObjectMapper objectMapper
+        JsonMapper jsonMapper
     ) {
 
         this.simulationArgumentsValidator = simulationArgumentsValidator;
         this.cacheTraceValidator = cacheTraceValidator;
         this.cacheSimulationService = cacheSimulationService;
         this.cacheTraceDao = cacheTraceDao;
-        this.objectMapper = objectMapper;
+        this.jsonMapper = jsonMapper;
 
         completedSimulations = new AtomicLong();
         rejectedSimulations = new AtomicLong();
-        cacheTraceBodyDtoType = new TypeReference<CacheTraceBodyDto>(){};
+        cacheTraceBodyDtoType = new TypeReference<>(){};
     }
 
     ///
     @Transactional
-    public void create(CacheTraceDto cacheTraceDto)
-    throws DataAccessException, EntityAlreadyExistsException, IllegalArgumentException {
+    public void create(CacheTraceDto cacheTraceDto) throws DataAccessException, IllegalArgumentException {
 
         cacheTraceValidator.validateForCreate(cacheTraceDto);
 
-        if(cacheTraceDao.existsByName(cacheTraceDto.getName())) {
-
-            throw new EntityAlreadyExistsException(ErrorFactory.create(
-
-                ErrorCode.CACHE_TRACE_ALREADY_EXISTS,
-                "CacheTraceService.create -> Entity already exists",
-                cacheTraceDto.getName()
-            ));
-        }
-
-        CacheTrace entity = new CacheTrace(
+        CacheTrace newCacheTraceEntity = new CacheTrace(
 
             System.currentTimeMillis(),
             cacheTraceDto.getDescription(),
             cacheTraceDto.getName(),
-            JsonMapper.serialize(cacheTraceDto.getData(), objectMapper)
+            jsonMapper.serialize(cacheTraceDto.getTrace())
         );
 
-        cacheTraceDao.insert(entity);
+        cacheTraceDao.insert(newCacheTraceEntity);
     }
 
     ///..
     public CacheTraceDto getById(long id) throws DataAccessException, EntityNotFoundException {
 
-        CacheTrace entity = cacheTraceDao.selectById(id);
+        CacheTrace fetchedCacheTraceEntity = cacheTraceDao.selectById(id);
 
-        if(entity != null) {
+        if(fetchedCacheTraceEntity != null) {
 
             return new CacheTraceDto(
 
-                entity.getId(),
-                entity.getName(),
-                entity.getDescription(),
-                entity.getCreatedAt(),
-                entity.getUpdatedAt(),
-                JsonMapper.deserialize(entity.getData(), cacheTraceBodyDtoType, objectMapper)
+                fetchedCacheTraceEntity.getId(),
+                fetchedCacheTraceEntity.getName(),
+                fetchedCacheTraceEntity.getDescription(),
+                fetchedCacheTraceEntity.getCreatedAt(),
+                fetchedCacheTraceEntity.getUpdatedAt(),
+                jsonMapper.deserialize(fetchedCacheTraceEntity.getData(), cacheTraceBodyDtoType)
             );
         }
 
@@ -176,42 +168,42 @@ public class CacheTraceService {
 
     ) throws DataAccessException {
 
-        List<CacheTrace> entities = cacheTraceDao.selectMinimalByNameLikeAndDates(
+        List<CacheTrace> fetchedCacheTraceEntities = cacheTraceDao.selectMinimalByNameLikeAndDates(
 
-            "%" + nameLike + "%",
+            nameLike + "%",
             createdAtStart,
             createdAtEnd,
             updatedAtStart,
             updatedAtEnd
         );
 
-        List<CacheTraceDto> dtos = new ArrayList<>(entities.size());
+        List<CacheTraceDto> cacheTraceDtos = new ArrayList<>(fetchedCacheTraceEntities.size());
 
-        for(CacheTrace entity : entities) {
+        for(CacheTrace cacheTraceEntity : fetchedCacheTraceEntities) {
 
-            dtos.add(new CacheTraceDto(
+            cacheTraceDtos.add(new CacheTraceDto(
 
-                entity.getId(),
-                entity.getName(),
-                entity.getDescription(),
-                entity.getCreatedAt(),
-                entity.getUpdatedAt(),
+                cacheTraceEntity.getId(),
+                cacheTraceEntity.getName(),
+                cacheTraceEntity.getDescription(),
+                cacheTraceEntity.getCreatedAt(),
+                cacheTraceEntity.getUpdatedAt(),
                 null
             ));
         }
 
-        return dtos;
+        return cacheTraceDtos;
     }
 
     ///..
     @Transactional
     public void update(CacheTraceDto cacheTraceDto)
-    throws DataAccessException, EntityAlreadyExistsException, EntityNotFoundException, IllegalArgumentException {
+    throws DataAccessException, EntityNotFoundException, IllegalArgumentException {
 
         cacheTraceValidator.validateForUpdate(cacheTraceDto);
-        CacheTrace entity = cacheTraceDao.selectById(cacheTraceDto.getId());
+        CacheTrace cacheTraceEntityToUpdate = cacheTraceDao.selectById(cacheTraceDto.getId());
 
-        if(entity == null) {
+        if(cacheTraceEntityToUpdate == null) {
 
             throw new EntityNotFoundException(ErrorFactory.create(
 
@@ -221,30 +213,12 @@ public class CacheTraceService {
             ));
         }
 
-        if(cacheTraceDto.getName() != null) {
+        if(cacheTraceDto.getName() != null) cacheTraceEntityToUpdate.setName(cacheTraceDto.getName());
+        if(cacheTraceDto.getDescription() != null) cacheTraceEntityToUpdate.setDescription(cacheTraceDto.getDescription());
+        if(cacheTraceDto.getTrace() != null) cacheTraceEntityToUpdate.setData(jsonMapper.serialize(cacheTraceDto.getTrace()));
 
-            if(cacheTraceDao.existsByName(cacheTraceDto.getName())) {
-
-                throw new EntityAlreadyExistsException(ErrorFactory.create(
-
-                    ErrorCode.CACHE_TRACE_ALREADY_EXISTS,
-                    "CacheTraceService.update -> Entity already exists",
-                    cacheTraceDto.getName()
-                ));
-            }
-
-            entity.setName(cacheTraceDto.getName());
-        }
-
-        if(cacheTraceDto.getDescription() != null) entity.setDescription(cacheTraceDto.getDescription());
-
-        if(cacheTraceDto.getData() != null) {
-
-            entity.setData(JsonMapper.serialize(cacheTraceDto.getData(), objectMapper));
-        }
-
-        entity.setUpdatedAt(System.currentTimeMillis());
-        cacheTraceDao.update(entity);
+        cacheTraceEntityToUpdate.setUpdatedAt(System.currentTimeMillis());
+        cacheTraceDao.update(cacheTraceEntityToUpdate);
     }
 
     ///..
@@ -262,9 +236,9 @@ public class CacheTraceService {
 
         for(Long traceId : simulationArgumentsDto.getTraceIds()) {
 
-            CacheTrace entity = cacheTraceDao.selectById(traceId);
+            CacheTrace fetchedCacheTraceEntity = cacheTraceDao.selectById(traceId);
 
-            if(entity == null) {
+            if(fetchedCacheTraceEntity == null) {
 
                 throw new EntityNotFoundException(ErrorFactory.create(
 
@@ -274,9 +248,9 @@ public class CacheTraceService {
                 ));
             }
 
-            combinedReport.put(entity.getName(), new LinkedHashMap<>());
-            CacheTraceBodyDto trace = JsonMapper.deserialize(entity.getData(), cacheTraceBodyDtoType, objectMapper);
-            List<Future<Entry<String, CacheSimulationReportSummaryDto>>> simulations = new ArrayList<>();
+            combinedReport.put(fetchedCacheTraceEntity.getName(), new LinkedHashMap<>());
+            CacheTraceBodyDto trace = jsonMapper.deserialize(fetchedCacheTraceEntity.getData(), cacheTraceBodyDtoType);
+            List<Future<Pair<String, CacheSimulationReportSummaryDto>>> simulations = new ArrayList<>();
 
             try {
 
@@ -291,18 +265,12 @@ public class CacheTraceService {
                     ));
                 }
 
-                for(Future<Entry<String, CacheSimulationReportSummaryDto>> simulation : simulations) {
+                for(Future<Pair<String, CacheSimulationReportSummaryDto>> simulation : simulations) {
 
-                    Entry<String, CacheSimulationReportSummaryDto> result = simulation.get();
-                    combinedReport.get(entity.getName()).put(result.getKey(), result.getValue());
+                    Pair<String, CacheSimulationReportSummaryDto> simulationResult = simulation.get();
+                    combinedReport.get(fetchedCacheTraceEntity.getName()).put(simulationResult.getA(), simulationResult.getB());
                     completedSimulations.incrementAndGet();
                 }
-            }
-
-            catch(InterruptedException exc) {
-
-                Thread.currentThread().interrupt();
-                createSimulationException(exc);
             }
 
             catch(RejectedExecutionException exc) {
@@ -316,10 +284,15 @@ public class CacheTraceService {
                 ));
             }
 
+            catch(InterruptedException exc) {
+
+                Thread.currentThread().interrupt();
+                this.createSimulationException(exc);
+            }
+
             catch(Exception exc) {
 
-                exc.printStackTrace();
-                throw createSimulationException(exc);
+                throw this.createSimulationException(exc);
             }
         }
 

@@ -17,8 +17,6 @@ public abstract class Dao {
 
     ///
     private final JdbcTemplate jdbcTemplate;
-
-    ///..
     private final int batchSize;
 
     ///

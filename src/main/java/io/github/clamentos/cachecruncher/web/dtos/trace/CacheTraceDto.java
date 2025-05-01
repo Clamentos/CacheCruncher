@@ -21,7 +21,7 @@ public final class CacheTraceDto {
     private final String description;
     private final Long createdAt;
     private final Long updatedAt;
-    private final CacheTraceBodyDto data;
+    private final CacheTraceBodyDto trace;
 
     ///
     @JsonCreator
@@ -32,7 +32,7 @@ public final class CacheTraceDto {
         @JsonProperty("description") String description,
         @JsonProperty("createdAt") Long createdAt,
         @JsonProperty("updatedAt") Long updatedAt,
-        @JsonProperty("data") CacheTraceBodyDto data
+        @JsonProperty("trace") CacheTraceBodyDto trace
     ) {
 
         this.id = id;
@@ -40,7 +40,7 @@ public final class CacheTraceDto {
         this.description = description;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
-        this.data = data;
+        this.trace = trace;
     }
 
     ///

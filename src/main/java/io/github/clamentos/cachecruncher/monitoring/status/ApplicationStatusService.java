@@ -1,14 +1,31 @@
 package io.github.clamentos.cachecruncher.monitoring.status;
 
 ///
+import com.fasterxml.jackson.core.type.TypeReference;
+
+///.
 import io.github.clamentos.cachecruncher.business.services.CacheTraceService;
 
 ///..
-import io.github.clamentos.cachecruncher.utility.Pair;
+import io.github.clamentos.cachecruncher.monitoring.logging.LogLevel;
+
+///..
+import io.github.clamentos.cachecruncher.persistence.daos.LogDao;
+import io.github.clamentos.cachecruncher.persistence.daos.MetricDao;
+
+///..
+import io.github.clamentos.cachecruncher.persistence.entities.Log;
+import io.github.clamentos.cachecruncher.persistence.entities.Metric;
+
+///..
+import io.github.clamentos.cachecruncher.utility.JsonMapper;
+
+///..
+import io.github.clamentos.cachecruncher.web.dtos.filters.LogSearchFilter;
+import io.github.clamentos.cachecruncher.web.dtos.filters.ResponseInfoSearchFilter;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.status.ApplicationStatusDto;
-import io.github.clamentos.cachecruncher.web.dtos.status.LatencyDistribution;
 import io.github.clamentos.cachecruncher.web.dtos.status.MemoryInfo;
 import io.github.clamentos.cachecruncher.web.dtos.status.MemorySubInfo;
 import io.github.clamentos.cachecruncher.web.dtos.status.ResponsesInfo;
@@ -25,17 +42,13 @@ import java.lang.management.ThreadMXBean;
 
 ///.
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 ///..
 import java.util.concurrent.ConcurrentHashMap;
-
-///..
-import java.util.concurrent.atomic.AtomicLong;
 
 ///.
 import lombok.extern.slf4j.Slf4j;
@@ -44,16 +57,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
+import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
-
-///..
-import org.springframework.core.env.Environment;
 
 ///..
 import org.springframework.core.task.TaskExecutor;
 
 ///..
+import org.springframework.dao.DataAccessException;
+
+///..
 import org.springframework.http.HttpStatus;
+
+///..
+import org.springframework.scheduling.annotation.Scheduled;
 
 ///..
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -62,7 +79,19 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 ///..
+import org.springframework.web.bind.annotation.RequestMethod;
+
+///..
 import org.springframework.web.context.support.ServletRequestHandledEvent;
+
+///..
+import org.springframework.web.method.HandlerMethod;
+
+///..
+import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
+
+///..
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 ///
 @Service
@@ -72,12 +101,23 @@ import org.springframework.web.context.support.ServletRequestHandledEvent;
 public class ApplicationStatusService {
 
     ///
+    private final ResponseInfoSearchFilterValidator responseInfoSearchFilterValidator;
+    private final LogSearchFilterValidator logSearchFilterValidator;
+
+    ///..
     private final ThreadPoolTaskExecutor simulationsExecutor;
     private final CacheTraceService cacheTraceService;
 
     ///..
-    private final Map<String, Map<HttpStatus, AtomicLong>> responseStatusCounters;
-    private final Map<String, TimeSamples> requestTimeSamples;
+    private final LogDao logDao;
+    private final MetricDao metricDao;
+
+    ///..
+    private final JsonMapper jsonMapper;
+
+    ///..
+    private final RequestsMetrics requestsMetrics;
+    private final Map<String, Integer> uriIdMap;
 
     ///..
     private final MemoryMXBean memoryBean;
@@ -85,35 +125,51 @@ public class ApplicationStatusService {
     private final ThreadMXBean threadBean;
 
     ///..
-    private final int numBuckets;
-    private final int timeSampleSize;
+    private final TypeReference<Map<String, Integer>> mapTypeRef;
 
     ///
     @Autowired
-    public ApplicationStatusService(TaskExecutor simulationsExecutor, CacheTraceService cacheTraceService, Environment environment) {
+    public ApplicationStatusService(
+
+        ResponseInfoSearchFilterValidator searchFilterValidator,
+        LogSearchFilterValidator logSearchFilterValidator,
+        TaskExecutor simulationsExecutor,
+        CacheTraceService cacheTraceService,
+        LogDao logDao,
+        MetricDao metricDao,
+        JsonMapper jsonMapper,
+        RequestsMetrics requestsMetrics
+    ) {
+
+        this.responseInfoSearchFilterValidator = searchFilterValidator;
+        this.logSearchFilterValidator = logSearchFilterValidator;
 
         this.simulationsExecutor = (ThreadPoolTaskExecutor) simulationsExecutor;
         this.cacheTraceService = cacheTraceService;
 
-        responseStatusCounters = new ConcurrentHashMap<>();
-        requestTimeSamples = new ConcurrentHashMap<>();
+        this.logDao = logDao;
+        this.metricDao = metricDao;
+
+        this.jsonMapper = jsonMapper;
+
+        this.requestsMetrics = requestsMetrics;
+        uriIdMap = new ConcurrentHashMap<>();
 
         memoryBean = ManagementFactory.getMemoryMXBean();
         runtimeBean = ManagementFactory.getRuntimeMXBean();
         threadBean = ManagementFactory.getThreadMXBean();
 
-        numBuckets = environment.getProperty("cache-cruncher.monitoring.status.numBuckets", Integer.class, 20);
-        timeSampleSize = environment.getProperty("cache-cruncher.monitoring.status.timeSampleSize", Integer.class, 1024);
+        mapTypeRef = new TypeReference<>(){};
     }
 
     ///
     public ApplicationStatusDto getStatistics(
 
-        Boolean includeRuntimeInfo,
-        Boolean includeMemoryInfo,
-        Boolean includeThreadsInfo,
-        Boolean includeResponsesInfo,
-        Boolean includeSimulationInfo
+        boolean includeRuntimeInfo,
+        boolean includeMemoryInfo,
+        boolean includeThreadsInfo,
+        boolean includeResponsesInfo,
+        boolean includeSimulationInfo
     ) {
 
         RuntimeInfo runtimeInfo = null;
@@ -122,7 +178,7 @@ public class ApplicationStatusService {
         ResponsesInfo responsesInfo = null;
         SimulationStatusInfo simulationInfo = null;
 
-        if(includeRuntimeInfo != null && includeRuntimeInfo.booleanValue()) {
+        if(includeRuntimeInfo) {
 
             runtimeInfo = new RuntimeInfo(
 
@@ -133,7 +189,7 @@ public class ApplicationStatusService {
             );
         }
 
-        if(includeMemoryInfo != null && includeMemoryInfo.booleanValue()) {
+        if(includeMemoryInfo) {
 
             MemoryUsage heapMemoryUsage = memoryBean.getHeapMemoryUsage();
             MemoryUsage nonHeapMemoryUsage = memoryBean.getHeapMemoryUsage();
@@ -158,7 +214,7 @@ public class ApplicationStatusService {
             );
         }
 
-        if(includeThreadsInfo != null && includeThreadsInfo.booleanValue()) {
+        if(includeThreadsInfo) {
 
             int threadCount = threadBean.getThreadCount();
             int daemonThreadCount = threadBean.getDaemonThreadCount();
@@ -172,16 +228,16 @@ public class ApplicationStatusService {
             );
         }
 
-        if(includeResponsesInfo != null && includeResponsesInfo.booleanValue()) {
+        if(includeResponsesInfo) {
 
             responsesInfo = new ResponsesInfo(
 
-                this.extract(responseStatusCounters),
-                this.calculateDistributions(requestTimeSamples)
+                uriIdMap,
+                requestsMetrics.getMetrics(uriIdMap)
             );
         }
 
-        if(includeSimulationInfo != null && includeSimulationInfo.booleanValue()) {
+        if(includeSimulationInfo) {
 
             simulationInfo = new SimulationStatusInfo(
 
@@ -202,122 +258,153 @@ public class ApplicationStatusService {
     }
 
     ///..
-    public void resetStatistics() {
+    @SuppressWarnings("unused")
+    public ResponsesInfo getResponsesInfoByFilter(ResponseInfoSearchFilter responseInfoSearchFilter)
+    throws DataAccessException, IllegalArgumentException {
 
-        responseStatusCounters.clear();
-        requestTimeSamples.clear();
+        Map<Integer, Map<Integer, Map<HttpStatus, List<Map<String, Integer>>>>> metrics = new HashMap<>();
+        responseInfoSearchFilterValidator.validate(responseInfoSearchFilter);
 
-        log.info("Statistics reset");
+        List<Metric> fetchedMetricEntities = metricDao.selectMetricsByFilter(
+
+            responseInfoSearchFilter.getCreatedAtStart(),
+            responseInfoSearchFilter.getCreatedAtEnd(),
+            responseInfoSearchFilter.getLastTimestamp(),
+            responseInfoSearchFilter.getCount()
+        );
+
+        for(Metric fetchedMetric : fetchedMetricEntities) {
+
+            metrics
+
+                .computeIfAbsent(fetchedMetric.getSecond(), k -> new HashMap<>())
+                .computeIfAbsent(uriIdMap.get(fetchedMetric.getEndpoint()), k -> new EnumMap<>(HttpStatus.class))
+                .computeIfAbsent(HttpStatus.valueOf(fetchedMetric.getStatus()), k -> new ArrayList<>())
+                .add(jsonMapper.deserialize(fetchedMetric.getData(), mapTypeRef))
+            ;
+        }
+
+        return new ResponsesInfo(uriIdMap, metrics);
+    }
+
+    ///..
+    public List<Log> getLogsByFilter(LogSearchFilter logSearchFilter) throws DataAccessException, IllegalArgumentException {
+
+        logSearchFilterValidator.validate(logSearchFilter);
+
+        return logDao.selectLogsByFilter(
+
+            logSearchFilter.getCreatedAtStart(),
+            logSearchFilter.getCreatedAtEnd(),
+            logSearchFilter.getLevels(),
+            logSearchFilter.getThreadLike() + "%",
+            logSearchFilter.getLoggerLike() + "%",
+            logSearchFilter.getMessageLike() + "%",
+            logSearchFilter.getLastTimestamp(),
+            logSearchFilter.getCount()
+        );
+    }
+
+    ///..
+    public Map<LogLevel, Long> getLogsCount() throws DataAccessException {
+
+        return logDao.countByLevel();
+    }
+
+    ///..
+    public int deleteMetrics(long createdAtStart, long createdAtEnd) throws DataAccessException {
+
+        return metricDao.delete(createdAtStart, createdAtEnd);
+    }
+
+    ///..
+    public int deleteLogs(long createdAtStart, long createdAtEnd) throws DataAccessException {
+
+        return logDao.delete(createdAtStart, createdAtEnd);
     }
 
     ///.
     @EventListener
-    @SuppressWarnings(value = "unused")
-    protected void handleRequestHandledEvent(ServletRequestHandledEvent event) {
+    protected void handleRequestHandledEvent(ServletRequestHandledEvent requestHandledEvent) {
 
-        // FIXME: the uri returned includes actual path valiable values...
-        String uri = event.getMethod() + event.getRequestUrl();
-        HttpStatus status = HttpStatus.valueOf(event.getStatusCode());
+        String url = requestHandledEvent.getMethod() + requestHandledEvent.getRequestUrl();
+        int queryStart = url.indexOf("?");
+        String path = queryStart > 0 ? url.substring(0, queryStart) : url;
 
-        responseStatusCounters
+        requestsMetrics.updateMetrics(
 
-            .computeIfAbsent(uri, key -> new ConcurrentHashMap<>())
-            .computeIfAbsent(status, key -> new AtomicLong())
-            .incrementAndGet()
+            path,
+            HttpStatus.valueOf(requestHandledEvent.getStatusCode()),
+            (int)requestHandledEvent.getProcessingTimeMillis()
+        );
+    }
+
+    ///..
+    @EventListener
+    protected void handleContextRefresh(ContextRefreshedEvent contextRefreshedEvent) {
+
+        Map<RequestMappingInfo, HandlerMethod> mappings = contextRefreshedEvent
+
+            .getApplicationContext()
+            .getBean("requestMappingHandlerMapping", RequestMappingHandlerMapping.class)
+            .getHandlerMethods()
         ;
 
-        requestTimeSamples.computeIfAbsent(uri, key -> new TimeSamples(timeSampleSize)).put((int)event.getProcessingTimeMillis());
-    }
+        int counter = 0;
 
-    ///.
-    private <T, B> Map<T, Map<B, Long>> extract(Map<T, Map<B, AtomicLong>> inputMap) throws NullPointerException {
+        for(Map.Entry<RequestMappingInfo, HandlerMethod> entry : mappings.entrySet()) {
 
-        Map<T, Map<B, Long>> extractedMap = new HashMap<>();
+            for(RequestMethod method : entry.getKey().getMethodsCondition().getMethods()) {
 
-        for(Map.Entry<T, Map<B, AtomicLong>> entry : inputMap.entrySet()) {
+                for(String path : entry.getKey().getDirectPaths()) {
 
-            Map<B, Long> innerMap = new HashMap<>();
-            extractedMap.put(entry.getKey(), innerMap);
-
-            for(Map.Entry<B, AtomicLong> innerEntry : entry.getValue().entrySet()) {
-
-                innerMap.put(innerEntry.getKey(), innerEntry.getValue().get());
-            }
-        }
-
-        return(extractedMap);
-    }
-
-    ///..
-    private Map<String, List<LatencyDistribution>> calculateDistributions(Map<String, TimeSamples> requestTimeSamples) {
-
-        Set<Map.Entry<String, TimeSamples>> entries = requestTimeSamples.entrySet();
-        Map<String, List<LatencyDistribution>> distributions = HashMap.newHashMap(entries.size());
-
-        for(Map.Entry<String, TimeSamples> entry : entries) {
-
-            distributions.put(entry.getKey(), this.calculateDistribution(entry.getValue()));
-        }
-
-        return(distributions);
-    }
-
-    ///..
-    private List<LatencyDistribution> calculateDistribution(TimeSamples requestTimeSamples) {
-
-        int[] samples = requestTimeSamples.getAll();
-        int max = 0;
-
-        for(int i = 0; i < samples.length; i++) {
-
-            max = Math.max(max, samples[i]);
-        }
-
-        // long[] always has 1 element, used as an "indirect" value.
-        Map<Pair<Integer, Integer>, long[]> buckets = LinkedHashMap.newLinkedHashMap(numBuckets);
-        int bucketSize = Math.ceilDiv(max, numBuckets);
-        int start = 0;
-
-        for(int i = 0; i < numBuckets; i++) {
-
-            buckets.put(new Pair<>(start, (start + bucketSize)), new long[]{0});
-            start += bucketSize;
-        }
-
-        for(int i = 0; i < samples.length; i++) {
-
-            if(samples[i] > 0) {
-
-                for(Map.Entry<Pair<Integer, Integer>, long[]> entry : buckets.entrySet()) {
-
-                    if(this.contains(entry.getKey(), samples[i])) {
-    
-                        entry.getValue()[0]++;
-                        break;
-                    }
+                    uriIdMap.put(method.toString() + path, counter++);
                 }
             }
         }
-
-        List<LatencyDistribution> distribution = new ArrayList<>(numBuckets);
-
-        for(Map.Entry<Pair<Integer, Integer>, long[]> entry : buckets.entrySet()) {
-
-            distribution.add(new LatencyDistribution(
-
-                entry.getKey().getA(),
-                entry.getKey().getB() - 1,
-                entry.getValue()[0]
-            ));
-        }
-
-        return(distribution);
     }
 
     ///..
-    private boolean contains(Pair<Integer, Integer> pair, Integer target) {
+    @Scheduled(fixedRate = 1000, scheduler = "taskScheduler")
+    protected void dump() {
 
-        return pair.getA().compareTo(target) <= 0 && pair.getB().compareTo(target) > 0;
+        try {
+
+            requestsMetrics.tryRollover(metrics -> {
+
+                log.info("Starting metrics dumping task...");
+
+                List<Metric> metricEntities = new ArrayList<>();
+                long now = System.currentTimeMillis();
+
+                for(Map.Entry<Integer, Map<String, Map<HttpStatus, LatencyDistribution>>> metricEntry : metrics.entrySet()) {
+
+                    for(Map.Entry<String, Map<HttpStatus, LatencyDistribution>> pathEntry : metricEntry.getValue().entrySet()) {
+
+                        for(Map.Entry<HttpStatus, LatencyDistribution> statusEntry : pathEntry.getValue().entrySet()) {
+
+                            metricEntities.add(new Metric(
+
+                                -1,
+                                now,
+                                metricEntry.getKey(),
+                                pathEntry.getKey(),
+                                (short)statusEntry.getKey().value(),
+                                jsonMapper.serialize(statusEntry.getValue().getDistribution())
+                            ));
+                        }
+                    }
+                }
+
+                metricDao.insert(metricEntities);
+                log.info("Metrics dumping task completed, {} metrics written", metricEntities.size());
+            });
+        }
+
+        catch(DataAccessException | IllegalArgumentException exc) {
+
+            log.error("Could not perform metrics rollover to database, this batch will be lost", exc);
+        }
     }
 
     ///

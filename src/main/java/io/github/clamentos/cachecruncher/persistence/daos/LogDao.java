@@ -113,17 +113,17 @@ public class LogDao extends Dao {
                 preparedStatement.setLong(3, createdAtEnd);
 
                 int index = 4;
-                LogLevel lastElement = null;
+                LogLevel lastLevel = null;
 
                 for(LogLevel level : levels) {
 
                     preparedStatement.setString(index++, level.toString());
-                    lastElement = level;
+                    lastLevel = level;
                 }
 
                 while(index < 9) {
 
-                    preparedStatement.setString(index++, lastElement.toString());
+                    preparedStatement.setString(index++, lastLevel.toString());
                 }
 
                 preparedStatement.setString(9, threadLike);
@@ -141,22 +141,23 @@ public class LogDao extends Dao {
 
         return super.getJdbcTemplate().query(COUNT_SQL, resultSet -> {
 
-            Map<LogLevel, Long> result = new EnumMap<>(LogLevel.class);
+            Map<LogLevel, Long> logs = new EnumMap<>(LogLevel.class);
 
             while(resultSet.next()) {
 
-                result.put(
+                logs.put(
 
                     LogLevel.valueOf(resultSet.getString(1)),
                     resultSet.getLong(2)
                 );
             }
 
-            return(result);
+            return(logs);
         });
     }
 
     ///..
+    @Transactional
     public int delete(long createdAtStart, long createdAtEnd) throws DataAccessException {
 
         return super.getJdbcTemplate().update(DELETE_SQL, createdAtStart, createdAtEnd);

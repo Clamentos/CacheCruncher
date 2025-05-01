@@ -26,6 +26,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 ///..
 import org.springframework.stereotype.Repository;
 
+///..
+import org.springframework.transaction.annotation.Transactional;
+
 ///
 @Repository
 
@@ -34,8 +37,6 @@ public class CacheTraceDao extends Dao {
 
     ///
     private static final String INSERT = "INSERT INTO cache_trace (created_at,updated_at,description,name,data) VALUES (?,?,?,?,?)";
-    private static final String EXISTS_BY_ID = "SELECT COUNT(*) >= 1 FROM cache_trace WHERE id = ?";
-    private static final String EXISTS_BY_NAME = "SELECT COUNT(*) >= 1 FROM cache_trace WHERE name = ?";
     private static final String SELECT_BY_ID = "SELECT id,created_at,updated_at,description,name,data FROM cache_trace WHERE id = ?";
 
     private static final String SELECT_MINIMAL = "SELECT id,created_at,updated_at,description,name FROM cache_trace WHERE name like ? AND created_at BETWEEN ? AND ? AND updated_at BETWEEN ? AND ?";
@@ -51,6 +52,7 @@ public class CacheTraceDao extends Dao {
     }
 
     ///
+    @Transactional
     public void insert(CacheTrace cacheTrace) throws DataAccessException, NullPointerException {
 
         super.getJdbcTemplate().update(INSERT, preparedStatement -> {
@@ -61,42 +63,6 @@ public class CacheTraceDao extends Dao {
             preparedStatement.setString(4, cacheTrace.getName());
             preparedStatement.setString(5, cacheTrace.getData());
         });
-    }
-
-    ///..
-    public boolean existsById(long id) throws DataAccessException {
-
-        Boolean exists = super.getJdbcTemplate().query(
-
-            EXISTS_BY_ID,
-            preparedStatement -> preparedStatement.setLong(1, id),
-
-            resultSet -> {
-
-                resultSet.next();
-                return resultSet.getLong(1) == 1L;
-            }
-        );
-
-        return exists != null && exists.booleanValue();
-    }
-
-    ///..
-    public boolean existsByName(String name) throws DataAccessException {
-
-        Boolean exists = super.getJdbcTemplate().query(
-
-            EXISTS_BY_NAME,
-            preparedStatement -> preparedStatement.setString(1, name),
-
-            resultSet -> {
-
-                resultSet.next();
-                return resultSet.getLong(1) == 1L;
-            }
-        );
-
-        return exists != null && exists.booleanValue(); 
     }
 
     ///..
@@ -139,6 +105,7 @@ public class CacheTraceDao extends Dao {
     }
 
     ///..
+    @Transactional
     public void update(CacheTrace cacheTrace) {
 
         super.getJdbcTemplate().update(UPDATE, preparedStatement -> {
@@ -152,6 +119,7 @@ public class CacheTraceDao extends Dao {
     }
 
     ///..
+    @Transactional
     public void delete(long id) throws DataAccessException {
 
         super.getJdbcTemplate().update(
@@ -171,14 +139,14 @@ public class CacheTraceDao extends Dao {
     ///..
     private List<CacheTrace> mapResultSet(ResultSet resultSet) throws SQLException {
 
-        List<CacheTrace> entities = new ArrayList<>();
+        List<CacheTrace> cacheTraces = new ArrayList<>();
 
         while(resultSet.next()) {
 
-            entities.add(constructFromResultSet(resultSet, false));
+            cacheTraces.add(constructFromResultSet(resultSet, false));
         }
 
-        return entities;
+        return cacheTraces;
     }
 
     ///..

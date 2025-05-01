@@ -21,7 +21,12 @@ public final class ConsoleColorConverter extends ForegroundCompositeConverterBas
 
     ///
     @Override
-    protected String getForegroundColorCode(ILoggingEvent event) throws NullPointerException {
+    protected String getForegroundColorCode(ILoggingEvent event) {
+
+        if(event == null || event.getLevel() == null) {
+
+            return ANSIConstants.BOLD + ANSIConstants.DEFAULT_FG;
+        }
 
         return switch(event.getLevel().toInt()) {
 

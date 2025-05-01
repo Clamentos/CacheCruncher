@@ -140,7 +140,7 @@ public class DatabaseLogsWriter {
             log.error("Could not process files, will abort the job", exc);
         }
 
-        log.info("Logs dumping task completed, written {} logs over {} files", totalLogsWritten[0], totalFilesCleaned);
+        log.info("Logs dumping task completed, {} logs written over {} files", totalLogsWritten[0], totalFilesCleaned);
     }
 
     ///.

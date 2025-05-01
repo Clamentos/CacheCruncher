@@ -19,8 +19,10 @@ import org.springframework.http.HttpStatus;
 public final class ResponsesInfo {
 
     ///
-    private final Map<String, Map<HttpStatus, Long>> responseStatusCounts;
-    private final Map<String, List<LatencyDistribution>> latencyDistributions;
+    private final Map<String, Integer> uriIdMap;
+
+    ///..
+    private final Map<Integer, Map<Integer, Map<HttpStatus, List<Map<String, Integer>>>>> metrics;
 
     ///
 }

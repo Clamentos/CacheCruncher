@@ -9,6 +9,9 @@ import io.github.clamentos.cachecruncher.business.simulation.SimulationFlag;
 import io.github.clamentos.cachecruncher.business.simulation.cache.Cache;
 
 ///..
+import io.github.clamentos.cachecruncher.utility.Pair;
+
+///..
 import io.github.clamentos.cachecruncher.web.dtos.report.CacheSimulationReportSummaryDto;
 
 ///..
@@ -19,8 +22,6 @@ import io.github.clamentos.cachecruncher.web.dtos.trace.CacheTraceBodyDto;
 
 ///.
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 ///..
@@ -42,9 +43,9 @@ public class CacheSimulationService {
 
     ///
     @Async(value = "simulationsExecutor")
-    public Future<Entry<String, CacheSimulationReportSummaryDto>> simulate(
+    public Future<Pair<String, CacheSimulationReportSummaryDto>> simulate(
 
-        Integer ramAccessTime,
+        int ramAccessTime,
         Set<SimulationFlag> simulationFlags,
         CacheConfigurationDto cacheConfiguration,
         CacheTraceBodyDto trace
@@ -56,7 +57,7 @@ public class CacheSimulationService {
         Cache cache = this.buildHierarchy(cacheConfiguration, ramAccessTime);
         long beginTimestamp = System.currentTimeMillis();
 
-        for(String command : trace.getTrace()) {
+        for(String command : trace.getBody()) {
 
             CacheCommandType commandType = CacheCommandType.determineType(command);
 
@@ -85,15 +86,22 @@ public class CacheSimulationService {
             }
         }
 
+        if(simulationFlags.contains(SimulationFlag.FLUSH_ON_TERMINATION)) {
+
+            cache.flush();
+        }
+
+        double averageMemoryAccessTime = commandCounter > 0 ? (double) cycleCounter / (double) commandCounter : -1;
+
         CacheSimulationReportSummaryDto summary = new CacheSimulationReportSummaryDto(
 
             beginTimestamp,
             System.currentTimeMillis(),
-            commandCounter > 0 ? (double) cycleCounter / (double) commandCounter : -1,
+            averageMemoryAccessTime,
             cache.getSimulationReport()
         );
 
-        return CompletableFuture.completedFuture(Map.entry(cacheConfiguration.getName(), summary));
+        return CompletableFuture.completedFuture(new Pair<>(cacheConfiguration.getName(), summary));
     }
 
     ///.
@@ -121,53 +129,37 @@ public class CacheSimulationService {
     ///..
     private long doSimpleCommandOnCache(CacheCommandType commandType, String command, Cache cache) {
 
-        if(commandType == CacheCommandType.READ) {
+        switch(commandType) {
 
-            long cycles = 0;
-            CacheCommandArguments arguments = this.parseSimpleCommand(command);
+            case READ, WRITE, PREFETCH:
 
-            for(int i = 0; i < arguments.getSize(); i++) {
+                long cycles = 0;
+                CacheCommandArguments arguments = this.parseReadWritePrefetch(command);
 
-                cycles += cache.read(arguments.getAddress() + i);
-            }
+                for(int i = 0; i < arguments.getSize(); i++) {
 
-            return cycles;
-        }
+                    long address = arguments.getAddress() + i;
 
-        if(commandType == CacheCommandType.WRITE) {
+                    switch(commandType) {
 
-            long cycles = 0;
-            CacheCommandArguments arguments = this.parseSimpleCommand(command);
+                        case READ: cycles += cache.read(address); break;
+                        case WRITE: cycles += cache.write(address); break;
 
-            for(int i = 0; i < arguments.getSize(); i++) {
-
-                cycles += cache.write(arguments.getAddress() + i);
-            }
+                        default: cycles += cache.prefetch(address); break;
+                    }
+                }
 
             return cycles;
+
+            case FLUSH: return cache.flush();
+            case INVALIDATE: return cache.invalidate(Integer.parseInt(command.substring(2)));
+
+            default: return cache.noop();
         }
-
-        // PREFETCH
-
-        if(commandType == CacheCommandType.FLUSH) return cache.flush();
-        if(commandType == CacheCommandType.INVALIDATE) return cache.invalidate(Integer.parseInt(command.substring(2)));
-
-        return cache.noop();
     }
 
     ///..
-    private long updateCommandCounter(long commandCounter, CacheCommandType commandType) {
-
-        if(commandType == CacheCommandType.READ || commandType == CacheCommandType.WRITE) {
-
-            return commandCounter + 1;
-        }
-
-        return commandCounter;
-    }
-
-    ///..
-    private CacheCommandArguments parseSimpleCommand(String command) {
+    private CacheCommandArguments parseReadWritePrefetch(String command) {
 
         String[] splits = command.split(" ");
 
@@ -176,6 +168,12 @@ public class CacheSimulationService {
             Integer.parseInt(splits[0].substring(1)),
             Long.parseLong(splits[1], 16)
         );
+    }
+
+    ///..
+    private long updateCommandCounter(long commandCounter, CacheCommandType commandType) {
+
+        return (commandType == CacheCommandType.READ || commandType == CacheCommandType.WRITE) ? commandCounter + 1 : commandCounter;
     }
 
     ///

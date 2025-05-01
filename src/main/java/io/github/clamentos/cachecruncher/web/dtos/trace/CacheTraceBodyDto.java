@@ -21,18 +21,18 @@ public final class CacheTraceBodyDto {
 
     ///
     private final Map<String, List<String>> sections;
-    private final List<String> trace;
+    private final List<String> body;
 
     ///
     @JsonCreator
     public CacheTraceBodyDto(
 
         @JsonProperty("sections") Map<String, List<String>> sections,
-        @JsonProperty("trace") List<String> trace
+        @JsonProperty("body") List<String> body
     ) {
 
         this.sections = sections;
-        this.trace = trace;
+        this.body = body;
     }
 
     ///

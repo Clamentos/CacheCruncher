@@ -23,7 +23,7 @@ public class Cache {
     private final int accessTime;
     private final int lineSizeExp;
     private final ReplacementPolicy replacementPolicy;
-    private final List<List<CacheLine>> cache;
+    private final List<List<CacheLine>> sets;
     private final Cache nextLevelCache;
 
     ///..
@@ -50,7 +50,7 @@ public class Cache {
         this.lineSizeExp = lineSizeExp;
 
         int numSetsPow = numSetsExp > 0 ? 2 << (numSetsExp - 1) : 1;
-        cache = new ArrayList<>(numSetsPow);
+        sets = new ArrayList<>(numSetsPow);
 
         for(int i = 0; i < numSetsPow; i++) {
 
@@ -61,14 +61,14 @@ public class Cache {
                 ways.add(new CacheLine());
             }
 
-            cache.add(ways);
+            sets.add(ways);
         }
 
         switch(replacementPolicyType) {
 
             case NOOP: replacementPolicy = new NoOpReplacementPolicy(); break;
             case RANDOM: replacementPolicy = new RandomReplacementPolicy(associativity); break;
-            case LRU: replacementPolicy = new LruReplacementPolicy(associativity, numSetsExp); break;
+            case LRU: replacementPolicy = new LruReplacementPolicy(associativity, numSetsPow); break;
 
             default: replacementPolicy = new NoOpReplacementPolicy(); break;
         }
@@ -118,7 +118,7 @@ public class Cache {
             }
 
             int victimWay = replacementPolicy.getVictim(index);
-            CacheLine victim = cache.get(index).get(victimWay);
+            CacheLine victim = sets.get(index).get(victimWay);
 
             if(victim.isValid() && victim.isDirty()) {
 
@@ -173,7 +173,7 @@ public class Cache {
             }
 
             int victimWay = replacementPolicy.getVictim(index);
-            CacheLine victim = cache.get(index).get(victimWay);
+            CacheLine victim = sets.get(index).get(victimWay);
 
             if(victim.isValid() && victim.isDirty()) {
 
@@ -205,7 +205,7 @@ public class Cache {
     }
 
     ///..
-    public long prefetch(int address) {
+    public long prefetch(long address) {
 
         // ...
         return 1;
@@ -243,7 +243,7 @@ public class Cache {
         if(isWriteMode) simulationReportDto.setWriteRequests(simulationReportDto.getWriteRequests() + 1);
         else simulationReportDto.setReadRequests(simulationReportDto.getReadRequests() + 1);
 
-        List<CacheLine> cacheSet = cache.get(index);
+        List<CacheLine> cacheSet = sets.get(index);
 
         for(int i = 0; i < cacheSet.size(); i++) {
 

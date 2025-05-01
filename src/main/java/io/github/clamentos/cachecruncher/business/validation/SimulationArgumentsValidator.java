@@ -1,6 +1,12 @@
 package io.github.clamentos.cachecruncher.business.validation;
 
 ///
+import io.github.clamentos.cachecruncher.business.simulation.replacement.ReplacementPolicyType;
+
+///..
+import io.github.clamentos.cachecruncher.utility.BasicValidator;
+
+///..
 import io.github.clamentos.cachecruncher.web.dtos.simulation.CacheConfigurationDto;
 import io.github.clamentos.cachecruncher.web.dtos.simulation.CacheSimulationArgumentsDto;
 
@@ -15,6 +21,9 @@ import org.springframework.stereotype.Service;
 
 ///
 public class SimulationArgumentsValidator extends BasicValidator {
+
+    ///
+    private static final String REPLACEMENT_POLICY_TYPE_FIELD = ".replacementPolicyType";
 
     ///
     public void validate(CacheSimulationArgumentsDto simulationArgumentsDto) throws IllegalArgumentException {
@@ -46,14 +55,38 @@ public class SimulationArgumentsValidator extends BasicValidator {
 
         super.requireNotNull(cacheConfiguration, prefix);
         super.requireNotBlank(cacheConfiguration.getName(), prefix + ".name");
-        super.requireGreaterOrEqual(cacheConfiguration.getAccessTime(), 0, prefix + ".accessTime");
-        super.requireGreaterOrEqual(cacheConfiguration.getNumSetsExp(), 0, prefix + ".numSetsExp");
-        super.requireGreaterOrEqual(cacheConfiguration.getLineSizeExp(), 0, prefix + ".lineSizeExp");
-        super.requireGreaterOrEqual(cacheConfiguration.getAssociativity(), 1, prefix + ".associativity");
+        super.requireBetween(cacheConfiguration.getAccessTime(), 0, Integer.MAX_VALUE, prefix + ".accessTime");
+        super.requireBetween(cacheConfiguration.getNumSetsExp(), 0, 30, prefix + ".numSetsExp");
+        super.requireBetween(cacheConfiguration.getLineSizeExp(), 0, 63, prefix + ".lineSizeExp");
 
-        if(cacheConfiguration.getAssociativity() > 0) {
+        Integer associativity = cacheConfiguration.getAssociativity();
+        ReplacementPolicyType replacementPolicyType = cacheConfiguration.getReplacementPolicyType();
+        super.requireBetween(associativity, 1, Integer.MAX_VALUE, prefix + ".associativity");
 
-            super.requireNotNull(cacheConfiguration.getReplacementPolicyType(), prefix + ".replacementPolicyType");
+        if(associativity > 1) {
+
+            super.requireNotNull(replacementPolicyType, prefix + REPLACEMENT_POLICY_TYPE_FIELD);
+
+            if(replacementPolicyType == ReplacementPolicyType.NOOP) {
+
+                throw super.fail(
+
+                    "SimulationArgumentsValidator.validateConfiguration -> Replacement policy type cannot be NOOP",
+                    prefix + REPLACEMENT_POLICY_TYPE_FIELD
+                );
+            }
+        }
+
+        else {
+
+            if(replacementPolicyType != null && replacementPolicyType != ReplacementPolicyType.NOOP) {
+
+                throw super.fail(
+
+                    "SimulationArgumentsValidator.validateConfiguration -> Replacement policy must be NOOP",
+                    prefix + REPLACEMENT_POLICY_TYPE_FIELD
+                );
+            }
         }
 
         if(cacheConfiguration.getNextLevelConfiguration() != null) {

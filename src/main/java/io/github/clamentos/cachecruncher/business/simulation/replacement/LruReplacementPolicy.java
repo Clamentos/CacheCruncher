@@ -5,15 +5,13 @@ public final class LruReplacementPolicy implements ReplacementPolicy {
 
     ///
     private final int associativity;
-
-    ///..
     private final int[][] lruCounters;
 
     ///
-    public LruReplacementPolicy(int associativity, int numSets) {
+    public LruReplacementPolicy(int associativity, int numSetsPow) {
 
         this.associativity = associativity;
-        lruCounters = new int[2 << (numSets - 1)][associativity];
+        lruCounters = new int[numSetsPow][associativity];
 
         for(int i = 0; i < lruCounters.length; i++) {
 
@@ -32,18 +30,16 @@ public final class LruReplacementPolicy implements ReplacementPolicy {
     public int getVictim(int index) {
 
         int[] lruCountersOfSet = lruCounters[index];
-        int victimPosition = 0;
 
         for(int i = 0; i < lruCountersOfSet.length; i++) {
 
             if(lruCountersOfSet[i] == 0) {
 
-                victimPosition = i;
-                break;
+                return i;
             }
         }
 
-        return victimPosition;
+        return 0;
     }
 
     ///..

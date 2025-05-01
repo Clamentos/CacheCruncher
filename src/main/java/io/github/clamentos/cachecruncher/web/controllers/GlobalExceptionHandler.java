@@ -4,7 +4,6 @@ package io.github.clamentos.cachecruncher.web.controllers;
 import io.github.clamentos.cachecruncher.error.ErrorCode;
 
 ///..
-import io.github.clamentos.cachecruncher.error.exceptions.EntityAlreadyExistsException;
 import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundException;
 import io.github.clamentos.cachecruncher.error.exceptions.SimulationException;
 import io.github.clamentos.cachecruncher.error.exceptions.TooManySimulationsException;
@@ -64,13 +63,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     ///..
-    @ExceptionHandler(value = EntityAlreadyExistsException.class)
-    protected ResponseEntity<ProblemDetail> handleEntityAlreadyExistsException(EntityAlreadyExistsException exc, WebRequest request) {
-
-        return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.CONFLICT);
-    }
-
-    ///..
     @ExceptionHandler(value = IllegalArgumentException.class)
     protected ResponseEntity<ProblemDetail> handleIllegalArgumentException(IllegalArgumentException exc, WebRequest request) {
 
@@ -82,7 +74,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     protected ResponseEntity<ProblemDetail> handleSimulationException(SimulationException exc, WebRequest request) {
 
         log.error(LOG_PATTERN, exc.getClass().getSimpleName(), exc.getMessage());
-        return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.INTERNAL_SERVER_ERROR);
+        return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
     ///..
