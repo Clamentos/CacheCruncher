@@ -55,6 +55,36 @@ CREATE TABLE IF NOT EXISTS cache_trace (
     data                    TEXT             NOT NULL
 );
 
+---..
+DROP SEQUENCE IF EXISTS user_id_seq;
+CREATE SEQUENCE user_id_seq START WITH 1 INCREMENT BY 1 CACHE 1024;
+
+DROP TABLE IF EXISTS user;
+CREATE TABLE IF NOT EXISTS user (
+
+    id                      BIGINT           PRIMARY KEY DEFAULT (NEXT VALUE FOR user_id_seq),
+    locked_until            BIGINT           NULL,
+    created_at              BIGINT           NOT NULL,
+    email                   VARCHAR(64)      NOT NULL UNIQUE,
+    password                VARCHAR(128)     NOT NULL,
+    failed_accesses         SMALLINT         NOT NULL,
+    is_admin                BOOLEAN          NOT NULL
+);
+
+---..
+DROP TABLE IF EXISTS session;
+CREATE TABLE IF NOT EXISTS session (
+
+    user_id                 BIGINT           NOT NULL,
+    expires_at              BIGINT           NOT NULL,
+    email                   VARCHAR(64)      NOT NULL,
+    device                  VARCHAR(128)     NOT NULL,
+    id                      VARCHAR(128)     PRIMARY KEY,
+    is_admin                BOOLEAN          NOT NULL,
+
+    CONSTRAINT session_fk FOREIGN KEY(user_id) REFERENCES user(id) ON DELETE CASCADE
+);
+
 ---
 SET FOREIGN_KEY_CHECKS = 1;
 

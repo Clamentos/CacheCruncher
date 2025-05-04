@@ -22,7 +22,7 @@ public class LogSearchFilterValidator extends BasicValidator {
 
         super.requireNotNull(searchFilter.getLastTimestamp(), "lastTimestamp");
         super.requireNotNull(searchFilter.getCount(), "count");
-        super.requireBetween(searchFilter.getCount(), 1, 1000, "count");
+        super.requireBetween(searchFilter.getCount(), 1, 100, "count");
         super.requireNotNull(searchFilter.getCreatedAtStart(), "createdAtStart");
         super.requireNotNull(searchFilter.getCreatedAtEnd(), "createdAtEnd");
         super.requireNotEmpty(searchFilter.getLevels(), "levels");

@@ -4,6 +4,9 @@ package io.github.clamentos.cachecruncher.business.services;
 import com.fasterxml.jackson.core.type.TypeReference;
 
 ///.
+import io.github.clamentos.cachecruncher.business.simulation.SimulationStatus;
+
+///..
 import io.github.clamentos.cachecruncher.business.validation.CacheTraceValidator;
 import io.github.clamentos.cachecruncher.business.validation.SimulationArgumentsValidator;
 
@@ -13,8 +16,6 @@ import io.github.clamentos.cachecruncher.error.ErrorFactory;
 
 ///..
 import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundException;
-import io.github.clamentos.cachecruncher.error.exceptions.SimulationException;
-import io.github.clamentos.cachecruncher.error.exceptions.TooManySimulationsException;
 
 ///..
 import io.github.clamentos.cachecruncher.persistence.daos.CacheTraceDao;
@@ -24,10 +25,11 @@ import io.github.clamentos.cachecruncher.persistence.entities.CacheTrace;
 
 ///..
 import io.github.clamentos.cachecruncher.utility.JsonMapper;
-import io.github.clamentos.cachecruncher.utility.Pair;
 
 ///..
-import io.github.clamentos.cachecruncher.web.dtos.report.CacheSimulationReportSummaryDto;
+import io.github.clamentos.cachecruncher.web.dtos.report.CacheSimulationRootReportDto;
+import io.github.clamentos.cachecruncher.web.dtos.report.SimulationReport;
+import io.github.clamentos.cachecruncher.web.dtos.report.SimulationSummaryReport;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.simulation.CacheConfigurationDto;
@@ -39,7 +41,7 @@ import io.github.clamentos.cachecruncher.web.dtos.trace.CacheTraceDto;
 
 ///.
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -73,14 +75,14 @@ import lombok.extern.slf4j.Slf4j;
 public class CacheTraceService {
 
     ///
-    private final SimulationArgumentsValidator simulationArgumentsValidator;
-    private final CacheTraceValidator cacheTraceValidator;
-
-    ///..
     private final CacheSimulationService cacheSimulationService;
 
     ///..
     private final CacheTraceDao cacheTraceDao;
+
+    ///..
+    private final SimulationArgumentsValidator simulationArgumentsValidator;
+    private final CacheTraceValidator cacheTraceValidator;
 
     ///..
     private final JsonMapper jsonMapper;
@@ -96,21 +98,24 @@ public class CacheTraceService {
     @Autowired
     public CacheTraceService(
 
-        SimulationArgumentsValidator simulationArgumentsValidator,
-        CacheTraceValidator cacheTraceValidator,
         CacheSimulationService cacheSimulationService,
         CacheTraceDao cacheTraceDao,
+        SimulationArgumentsValidator simulationArgumentsValidator,
+        CacheTraceValidator cacheTraceValidator,
         JsonMapper jsonMapper
     ) {
 
-        this.simulationArgumentsValidator = simulationArgumentsValidator;
-        this.cacheTraceValidator = cacheTraceValidator;
         this.cacheSimulationService = cacheSimulationService;
         this.cacheTraceDao = cacheTraceDao;
+
+        this.simulationArgumentsValidator = simulationArgumentsValidator;
+        this.cacheTraceValidator = cacheTraceValidator;
+
         this.jsonMapper = jsonMapper;
 
         completedSimulations = new AtomicLong();
         rejectedSimulations = new AtomicLong();
+
         cacheTraceBodyDtoType = new TypeReference<>(){};
     }
 
@@ -120,7 +125,7 @@ public class CacheTraceService {
 
         cacheTraceValidator.validateForCreate(cacheTraceDto);
 
-        CacheTrace newCacheTraceEntity = new CacheTrace(
+        CacheTrace cacheTraceEntity = new CacheTrace(
 
             System.currentTimeMillis(),
             cacheTraceDto.getDescription(),
@@ -128,37 +133,32 @@ public class CacheTraceService {
             jsonMapper.serialize(cacheTraceDto.getTrace())
         );
 
-        cacheTraceDao.insert(newCacheTraceEntity);
+        cacheTraceDao.insert(cacheTraceEntity);
     }
 
     ///..
     public CacheTraceDto getById(long id) throws DataAccessException, EntityNotFoundException {
 
-        CacheTrace fetchedCacheTraceEntity = cacheTraceDao.selectById(id);
+        CacheTrace cacheTraceEntities = cacheTraceDao.selectById(id);
 
-        if(fetchedCacheTraceEntity != null) {
+        if(cacheTraceEntities != null) {
 
             return new CacheTraceDto(
 
-                fetchedCacheTraceEntity.getId(),
-                fetchedCacheTraceEntity.getName(),
-                fetchedCacheTraceEntity.getDescription(),
-                fetchedCacheTraceEntity.getCreatedAt(),
-                fetchedCacheTraceEntity.getUpdatedAt(),
-                jsonMapper.deserialize(fetchedCacheTraceEntity.getData(), cacheTraceBodyDtoType)
+                cacheTraceEntities.getId(),
+                cacheTraceEntities.getName(),
+                cacheTraceEntities.getDescription(),
+                cacheTraceEntities.getCreatedAt(),
+                cacheTraceEntities.getUpdatedAt(),
+                jsonMapper.deserialize(cacheTraceEntities.getData(), cacheTraceBodyDtoType)
             );
         }
 
-        throw new EntityNotFoundException(ErrorFactory.create(
-
-            ErrorCode.CACHE_TRACE_NOT_FOUND,
-            "CacheTraceService.getById -> Entity does not exist",
-            id
-        ));
+        throw this.createNotFoundException("getById", id);
     }
 
     ///..
-    public List<CacheTraceDto> getMinimalByNameLikeAndDates(
+    public List<CacheTraceDto> getByFilter(
 
         String nameLike,
         long createdAtStart,
@@ -168,7 +168,7 @@ public class CacheTraceService {
 
     ) throws DataAccessException {
 
-        List<CacheTrace> fetchedCacheTraceEntities = cacheTraceDao.selectMinimalByNameLikeAndDates(
+        List<CacheTrace> cacheTraceEntities = cacheTraceDao.selectMinimalByNameLikeAndDates(
 
             nameLike + "%",
             createdAtStart,
@@ -177,17 +177,17 @@ public class CacheTraceService {
             updatedAtEnd
         );
 
-        List<CacheTraceDto> cacheTraceDtos = new ArrayList<>(fetchedCacheTraceEntities.size());
+        List<CacheTraceDto> cacheTraceDtos = new ArrayList<>(cacheTraceEntities.size());
 
-        for(CacheTrace cacheTraceEntity : fetchedCacheTraceEntities) {
+        for(CacheTrace fetchedCacheTrace : cacheTraceEntities) {
 
             cacheTraceDtos.add(new CacheTraceDto(
 
-                cacheTraceEntity.getId(),
-                cacheTraceEntity.getName(),
-                cacheTraceEntity.getDescription(),
-                cacheTraceEntity.getCreatedAt(),
-                cacheTraceEntity.getUpdatedAt(),
+                fetchedCacheTrace.getId(),
+                fetchedCacheTrace.getName(),
+                fetchedCacheTrace.getDescription(),
+                fetchedCacheTrace.getCreatedAt(),
+                fetchedCacheTrace.getUpdatedAt(),
                 null
             ));
         }
@@ -197,106 +197,133 @@ public class CacheTraceService {
 
     ///..
     @Transactional
-    public void update(CacheTraceDto cacheTraceDto)
-    throws DataAccessException, EntityNotFoundException, IllegalArgumentException {
+    public void update(CacheTraceDto cacheTraceDto) throws DataAccessException, EntityNotFoundException, IllegalArgumentException {
 
         cacheTraceValidator.validateForUpdate(cacheTraceDto);
-        CacheTrace cacheTraceEntityToUpdate = cacheTraceDao.selectById(cacheTraceDto.getId());
 
-        if(cacheTraceEntityToUpdate == null) {
+        Long id = cacheTraceDto.getId();
+        CacheTrace cacheTraceEntity = cacheTraceDao.selectById(id);
 
-            throw new EntityNotFoundException(ErrorFactory.create(
+        if(cacheTraceEntity == null) {
 
-                ErrorCode.CACHE_TRACE_NOT_FOUND,
-                "CacheTraceService.update -> Entity does not exist",
-                cacheTraceDto.getId()
-            ));
+            throw this.createNotFoundException("update", id);
         }
 
-        if(cacheTraceDto.getName() != null) cacheTraceEntityToUpdate.setName(cacheTraceDto.getName());
-        if(cacheTraceDto.getDescription() != null) cacheTraceEntityToUpdate.setDescription(cacheTraceDto.getDescription());
-        if(cacheTraceDto.getTrace() != null) cacheTraceEntityToUpdate.setData(jsonMapper.serialize(cacheTraceDto.getTrace()));
+        if(cacheTraceDto.getName() != null) cacheTraceEntity.setName(cacheTraceDto.getName());
+        if(cacheTraceDto.getDescription() != null) cacheTraceEntity.setDescription(cacheTraceDto.getDescription());
+        if(cacheTraceDto.getTrace() != null) cacheTraceEntity.setData(jsonMapper.serialize(cacheTraceDto.getTrace()));
 
-        cacheTraceEntityToUpdate.setUpdatedAt(System.currentTimeMillis());
-        cacheTraceDao.update(cacheTraceEntityToUpdate);
+        cacheTraceEntity.setUpdatedAt(System.currentTimeMillis());
+        cacheTraceDao.update(cacheTraceEntity);
     }
 
     ///..
-    public void deleteById(long id) throws DataAccessException {
+    @Transactional
+    public void delete(long id) throws DataAccessException, EntityNotFoundException {
 
-        cacheTraceDao.delete(id);
+        if(cacheTraceDao.delete(id) == 0) {
+
+            throw this.createNotFoundException("delete", id);
+        }
     }
 
     ///..
-    public Map<String, Map<String, CacheSimulationReportSummaryDto>> simulate(CacheSimulationArgumentsDto simulationArgumentsDto)
-    throws DataAccessException, EntityNotFoundException, IllegalArgumentException, SimulationException {
+    public SimulationSummaryReport<CacheSimulationRootReportDto> simulate(CacheSimulationArgumentsDto simulationArgumentsDto)
+    throws IllegalArgumentException {
 
         simulationArgumentsValidator.validate(simulationArgumentsDto);
-        Map<String, Map<String, CacheSimulationReportSummaryDto>> combinedReport = new LinkedHashMap<>();
+
+        boolean hasErrors = false;
+        Map<Long, SimulationReport<CacheSimulationRootReportDto>> combinedReport = new HashMap<>();
 
         for(Long traceId : simulationArgumentsDto.getTraceIds()) {
 
-            CacheTrace fetchedCacheTraceEntity = cacheTraceDao.selectById(traceId);
-
-            if(fetchedCacheTraceEntity == null) {
-
-                throw new EntityNotFoundException(ErrorFactory.create(
-
-                    ErrorCode.CACHE_TRACE_NOT_FOUND,
-                    "CacheTraceService.simulate -> Entity does not exist",
-                    traceId
-                ));
-            }
-
-            combinedReport.put(fetchedCacheTraceEntity.getName(), new LinkedHashMap<>());
-            CacheTraceBodyDto trace = jsonMapper.deserialize(fetchedCacheTraceEntity.getData(), cacheTraceBodyDtoType);
-            List<Future<Pair<String, CacheSimulationReportSummaryDto>>> simulations = new ArrayList<>();
+            CacheTrace cacheTraceEntity = null;
 
             try {
 
+                cacheTraceEntity = cacheTraceDao.selectById(traceId);
+            }
+
+            catch(DataAccessException exc) {
+
+                log.error("{}: {}", exc.getClass().getSimpleName(), exc.getMessage());
+
+                combinedReport.put(traceId, new SimulationReport<>(SimulationStatus.UCATEGORIZED, null));
+                hasErrors = true;
+
+                continue;
+            }
+
+            if(cacheTraceEntity != null) {
+
+                CacheTraceBodyDto trace = jsonMapper.deserialize(cacheTraceEntity.getData(), cacheTraceBodyDtoType);
+                List<Future<CacheSimulationRootReportDto>> simulations = new ArrayList<>();
+
                 for(CacheConfigurationDto cacheConfiguration : simulationArgumentsDto.getCacheConfigurations()) {
 
-                    simulations.add(cacheSimulationService.simulate(
+                    String cacheConfigurationName = cacheConfiguration.getName();
+
+                    try {
+
+                        simulations.add(cacheSimulationService.simulate(
+
+                            simulationArgumentsDto.getRamAccessTime(),
+                            simulationArgumentsDto.getSimulationFlags(),
+                            cacheConfiguration,
+                            trace
+                        ));
+                    }
+
+                    catch(RejectedExecutionException exc) {
+
+                        rejectedSimulations.incrementAndGet();
+                        hasErrors = true;
+
+                        this.addReport(
+
+                            combinedReport,
+                            CacheSimulationRootReportDto.newRejected(),
+                            cacheConfigurationName,
+                            SimulationStatus.NESTED_ERRORS,
+                            traceId
+                        );
+                    }
+
+                    for(Future<CacheSimulationRootReportDto> simulation : simulations) {
+
+                        try {
+
+                            CacheSimulationRootReportDto simulationResult = simulation.get();
+                            completedSimulations.incrementAndGet();
+                            this.addReport(combinedReport, simulationResult, cacheConfigurationName, SimulationStatus.OK, traceId);
+                        }
+
+                        catch(InterruptedException exc) {
+
+                            Thread.currentThread().interrupt();
+                            this.handleSimulationException(combinedReport, cacheConfigurationName, traceId);
+                            hasErrors = true;
+                        }
     
-                        simulationArgumentsDto.getRamAccessTime(),
-                        simulationArgumentsDto.getSimulationFlags(),
-                        cacheConfiguration,
-                        trace
-                    ));
-                }
-
-                for(Future<Pair<String, CacheSimulationReportSummaryDto>> simulation : simulations) {
-
-                    Pair<String, CacheSimulationReportSummaryDto> simulationResult = simulation.get();
-                    combinedReport.get(fetchedCacheTraceEntity.getName()).put(simulationResult.getA(), simulationResult.getB());
-                    completedSimulations.incrementAndGet();
+                        catch(Exception exc) {
+    
+                            log.error("Could not simulate", exc);
+                            this.handleSimulationException(combinedReport, cacheConfigurationName, traceId);
+                            hasErrors = true;
+                        }
+                    }
                 }
             }
 
-            catch(RejectedExecutionException exc) {
+            else {
 
-                rejectedSimulations.incrementAndGet();
-
-                throw new TooManySimulationsException(ErrorFactory.create(
-
-                    ErrorCode.SERVICE_TEMPORARILY_UNAVAILABLE,
-                    "CacheTraceService.simulate -> Simulation queue full"
-                ));
-            }
-
-            catch(InterruptedException exc) {
-
-                Thread.currentThread().interrupt();
-                this.createSimulationException(exc);
-            }
-
-            catch(Exception exc) {
-
-                throw this.createSimulationException(exc);
+                combinedReport.put(traceId, new SimulationReport<>(SimulationStatus.NOT_FOUND, null));
+                hasErrors = true;
             }
         }
 
-        return combinedReport;
+        return new SimulationSummaryReport<>(hasErrors, combinedReport);
     }
 
     ///..
@@ -312,13 +339,50 @@ public class CacheTraceService {
     }
 
     ///.
-    private SimulationException createSimulationException(Exception exc) {
+    private EntityNotFoundException createNotFoundException(String methodName, long id) {
 
-        return new SimulationException(ErrorFactory.create(
+        return new EntityNotFoundException(ErrorFactory.create(
 
-            ErrorCode.SIMULATION_ERROR,
-            "CacheTraceService.simulate -> " + exc.getMessage()
+            ErrorCode.CACHE_TRACE_NOT_FOUND,
+            "CacheTraceService." + methodName + " -> The specified cache trace does not exist",
+            id
         ));
+    }
+
+    ///..
+    private void addReport(
+
+        Map<Long, SimulationReport<CacheSimulationRootReportDto>> combinedReport,
+        CacheSimulationRootReportDto newSummary,
+        String cacheConfigurationName,
+        SimulationStatus status,
+        Long traceId
+    ) {
+
+        SimulationReport<CacheSimulationRootReportDto> traceReport = combinedReport.get(traceId);
+
+        if(traceReport == null) {
+
+            Map<String, CacheSimulationRootReportDto> reportMap = new HashMap<>();
+
+            reportMap.put(cacheConfigurationName, newSummary);
+            combinedReport.put(traceId, new SimulationReport<>(status, reportMap));
+        }
+
+        else {
+
+            traceReport.getReport().put(cacheConfigurationName, newSummary);
+        }
+    }
+
+    ///..
+    private void handleSimulationException(
+
+        Map<Long, SimulationReport<CacheSimulationRootReportDto>> combinedReport,
+        String cacheConfigurationName,
+        Long traceId
+    ) {
+        this.addReport(combinedReport, null, cacheConfigurationName, SimulationStatus.UCATEGORIZED, traceId);
     }
 
     ///

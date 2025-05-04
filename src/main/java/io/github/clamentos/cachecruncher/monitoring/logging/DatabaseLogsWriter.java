@@ -58,23 +58,24 @@ public class DatabaseLogsWriter {
     private final LogDao logDao;
 
     ///..
-    private final String logsPath;
-    private final int batchSize;
-
-    ///..
     private final Pattern pattern;
     private final DateTimeFormatter formatter;
+
+    ///..
+    private final String logsPath;
+    private final int batchSize;
 
     ///
     @Autowired
     public DatabaseLogsWriter(LogDao logDao, Environment environment) {
 
         this.logDao = logDao;
-        logsPath = environment.getProperty("cache-cruncher.logsPath", String.class);
-        batchSize = environment.getProperty("cache-cruncher.jdbc.batch_size", Integer.class, 64);
 
         pattern = Pattern.compile("\\|");
         formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSS");
+
+        logsPath = environment.getProperty("cache-cruncher.logsPath", String.class);
+        batchSize = environment.getProperty("cache-cruncher.jdbc.batchSize", Integer.class, 64);
     }
 
     ///

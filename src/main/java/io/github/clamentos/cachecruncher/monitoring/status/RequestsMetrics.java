@@ -107,7 +107,6 @@ public final class RequestsMetrics {
     }
 
     ///
-    @SuppressWarnings("unused")
     public void updateMetrics(String path, HttpStatus status, int elapsed) {
 
         while(currentSecond.get() == rolloverTime) {
@@ -122,9 +121,9 @@ public final class RequestsMetrics {
 
         currentTracker
 
-            .computeIfAbsent(slotValue, key -> new ConcurrentHashMap<>())
-            .computeIfAbsent(path, key -> new ConcurrentHashMap<>())
-            .computeIfAbsent(status, key -> new LatencyDistribution(breakpoints, outliersStartingBoundary))
+            .computeIfAbsent(slotValue, _ -> new ConcurrentHashMap<>())
+            .computeIfAbsent(path, _ -> new ConcurrentHashMap<>())
+            .computeIfAbsent(status, _ -> new LatencyDistribution(breakpoints, outliersStartingBoundary))
             .update(elapsed)
         ;
     }

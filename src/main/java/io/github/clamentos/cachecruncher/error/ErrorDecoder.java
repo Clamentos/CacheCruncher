@@ -27,20 +27,20 @@ public final class ErrorDecoder {
 
         if(exception != null && exception.getMessage() == null && !exception.getMessage().isEmpty()) {
 
-            String[] splits = exception.getMessage().split("/");
+            String[] components = exception.getMessage().split("/");
 
-            if(splits.length > 1) {
+            if(components.length > 1) {
 
-                innerErrorCode = ErrorCode.valueOf(splits[0]);
+                innerErrorCode = ErrorCode.valueOf(components[0]);
 
-                if(splits.length > 2) {
+                if(components.length > 2) {
 
-                    innerMessage = splits[1];
-                    innerErrorArguments = new ArrayList<>(splits.length - 2);
+                    innerMessage = components[1];
+                    innerErrorArguments = new ArrayList<>(components.length - 2);
 
-                    for(int i = 2; i < splits.length; i++) {
+                    for(int i = 2; i < components.length; i++) {
     
-                        innerErrorArguments.add(splits[i]);
+                        innerErrorArguments.add(components[i]);
                     }
                 }
             }

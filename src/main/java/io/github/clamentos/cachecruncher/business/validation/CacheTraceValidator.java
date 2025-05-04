@@ -74,6 +74,15 @@ public class CacheTraceValidator extends BasicValidator {
     }
 
     ///.
+    private void validateBasic(CacheTraceDto cacheTraceDto) throws IllegalArgumentException {
+
+        super.requireNotNull(cacheTraceDto, "DTO");
+
+        super.requireNull(cacheTraceDto.getCreatedAt(), "createdAt");
+        super.requireNull(cacheTraceDto.getUpdatedAt(), "updatedAt");
+    }
+
+    ///..
     private void validateData(CacheTraceBodyDto trace) throws IllegalArgumentException {
 
         Map<String, List<String>> sections = trace.getSections();
@@ -117,15 +126,6 @@ public class CacheTraceValidator extends BasicValidator {
             super.requireNotBlank(command, "trace.body" + "[" + i + "]");
             this.validateCommandSyntax(CacheCommandType.determineType(command), command);
         }
-    }
-
-    ///..
-    private void validateBasic(CacheTraceDto cacheTraceDto) throws IllegalArgumentException {
-
-        super.requireNotNull(cacheTraceDto, "DTO");
-
-        super.requireNull(cacheTraceDto.getCreatedAt(), "createdAt");
-        super.requireNull(cacheTraceDto.getUpdatedAt(), "updatedAt");
     }
 
     ///..

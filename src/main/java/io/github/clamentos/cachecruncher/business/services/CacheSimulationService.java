@@ -4,15 +4,13 @@ package io.github.clamentos.cachecruncher.business.services;
 import io.github.clamentos.cachecruncher.business.simulation.CacheCommandArguments;
 import io.github.clamentos.cachecruncher.business.simulation.CacheCommandType;
 import io.github.clamentos.cachecruncher.business.simulation.SimulationFlag;
+import io.github.clamentos.cachecruncher.business.simulation.SimulationStatus;
 
 ///..
 import io.github.clamentos.cachecruncher.business.simulation.cache.Cache;
 
 ///..
-import io.github.clamentos.cachecruncher.utility.Pair;
-
-///..
-import io.github.clamentos.cachecruncher.web.dtos.report.CacheSimulationReportSummaryDto;
+import io.github.clamentos.cachecruncher.web.dtos.report.CacheSimulationRootReportDto;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.simulation.CacheConfigurationDto;
@@ -43,7 +41,7 @@ public class CacheSimulationService {
 
     ///
     @Async(value = "simulationsExecutor")
-    public Future<Pair<String, CacheSimulationReportSummaryDto>> simulate(
+    public Future<CacheSimulationRootReportDto> simulate(
 
         int ramAccessTime,
         Set<SimulationFlag> simulationFlags,
@@ -54,8 +52,8 @@ public class CacheSimulationService {
 
         long cycleCounter = 0;
         long commandCounter = 0;
-        Cache cache = this.buildHierarchy(cacheConfiguration, ramAccessTime);
         long beginTimestamp = System.currentTimeMillis();
+        Cache cache = this.buildHierarchy(cacheConfiguration, ramAccessTime);
 
         for(String command : trace.getBody()) {
 
@@ -64,14 +62,14 @@ public class CacheSimulationService {
             if(commandType != CacheCommandType.REPEAT) {
 
                 cycleCounter += this.doSimpleCommandOnCache(commandType, command, cache);
-                commandCounter = this.updateCommandCounter(commandCounter, commandType);
+                commandCounter += this.updateCommandCounter(commandType);
             }
 
             else {
 
-                String[] splits = command.split("#");
-                int repetitions = Integer.parseInt(splits[1]);
-                List<String> section = trace.getSections().get(splits[2]);
+                String[] commandComponents = command.split("#");
+                int repetitions = Integer.parseInt(commandComponents[1]);
+                List<String> section = trace.getSections().get(commandComponents[2]);
 
                 for(int i = 0; i < repetitions; i++) {
 
@@ -80,7 +78,7 @@ public class CacheSimulationService {
                     for(String sectionCommand : section) {
 
                         cycleCounter += this.doSimpleCommandOnCache(sectionCommandType, sectionCommand, cache);
-                        commandCounter = this.updateCommandCounter(commandCounter, commandType);
+                        commandCounter += this.updateCommandCounter(commandType);
                     }
                 }
             }
@@ -91,17 +89,18 @@ public class CacheSimulationService {
             cache.flush();
         }
 
-        double averageMemoryAccessTime = commandCounter > 0 ? (double) cycleCounter / (double) commandCounter : -1;
+        double averageMemoryAccessTime = commandCounter > 0 ? (double)cycleCounter / (double)commandCounter : -1;
 
-        CacheSimulationReportSummaryDto summary = new CacheSimulationReportSummaryDto(
+        CacheSimulationRootReportDto summary = new CacheSimulationRootReportDto(
 
+            SimulationStatus.OK,
             beginTimestamp,
             System.currentTimeMillis(),
             averageMemoryAccessTime,
             cache.getSimulationReport()
         );
 
-        return CompletableFuture.completedFuture(new Pair<>(cacheConfiguration.getName(), summary));
+        return CompletableFuture.completedFuture(summary);
     }
 
     ///.
@@ -161,19 +160,19 @@ public class CacheSimulationService {
     ///..
     private CacheCommandArguments parseReadWritePrefetch(String command) {
 
-        String[] splits = command.split(" ");
+        String[] components = command.split(" ");
 
         return new CacheCommandArguments(
 
-            Integer.parseInt(splits[0].substring(1)),
-            Long.parseLong(splits[1], 16)
+            Integer.parseInt(components[0].substring(1)),
+            Long.parseLong(components[1], 16)
         );
     }
 
     ///..
-    private long updateCommandCounter(long commandCounter, CacheCommandType commandType) {
+    private long updateCommandCounter(CacheCommandType commandType) {
 
-        return (commandType == CacheCommandType.READ || commandType == CacheCommandType.WRITE) ? commandCounter + 1 : commandCounter;
+        return (commandType == CacheCommandType.READ || commandType == CacheCommandType.WRITE) ? 1 : 0;
     }
 
     ///

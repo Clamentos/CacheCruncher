@@ -4,9 +4,10 @@ package io.github.clamentos.cachecruncher.web.controllers;
 import io.github.clamentos.cachecruncher.error.ErrorCode;
 
 ///..
+import io.github.clamentos.cachecruncher.error.exceptions.AuthenticationException;
+import io.github.clamentos.cachecruncher.error.exceptions.AuthorizationException;
+import io.github.clamentos.cachecruncher.error.exceptions.EntityAlreadyExistsException;
 import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundException;
-import io.github.clamentos.cachecruncher.error.exceptions.SimulationException;
-import io.github.clamentos.cachecruncher.error.exceptions.TooManySimulationsException;
 
 ///.
 import java.net.URI;
@@ -45,14 +46,32 @@ import lombok.extern.slf4j.Slf4j;
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     ///
-    private static final String LOG_PATTERN = "{}: {}";
+    @ExceptionHandler(value = AuthenticationException.class)
+    protected ResponseEntity<ProblemDetail> handleAuthenticationException(AuthenticationException exc, WebRequest request) {
 
-    ///
+        return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.UNAUTHORIZED);
+    }
+
+    ///..
+    @ExceptionHandler(value = AuthorizationException.class)
+    protected ResponseEntity<ProblemDetail> handleAuthorizationException(AuthorizationException exc, WebRequest request) {
+
+        return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.FORBIDDEN);
+    }
+
+    ///..
     @ExceptionHandler(value = DataAccessException.class)
     protected ResponseEntity<ProblemDetail> handleDataAccessException(DataAccessException exc, WebRequest request) {
 
-        log.error(LOG_PATTERN, exc.getClass().getSimpleName(), exc.getMessage());
+        log.error("{}: {}", exc.getClass().getSimpleName(), exc.getMessage());
         return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    ///..
+    @ExceptionHandler(value = EntityAlreadyExistsException.class)
+    protected ResponseEntity<ProblemDetail> handleEntityAlreadyExistsException(EntityAlreadyExistsException exc, WebRequest request) {
+
+        return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.CONFLICT);
     }
 
     ///..
@@ -67,21 +86,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     protected ResponseEntity<ProblemDetail> handleIllegalArgumentException(IllegalArgumentException exc, WebRequest request) {
 
         return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.BAD_REQUEST);
-    }
-
-    ///..
-    @ExceptionHandler(value = SimulationException.class)
-    protected ResponseEntity<ProblemDetail> handleSimulationException(SimulationException exc, WebRequest request) {
-
-        log.error(LOG_PATTERN, exc.getClass().getSimpleName(), exc.getMessage());
-        return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.UNPROCESSABLE_ENTITY);
-    }
-
-    ///..
-    @ExceptionHandler(value = TooManySimulationsException.class)
-    protected ResponseEntity<ProblemDetail> handleTooManySimulationsException(TooManySimulationsException exc, WebRequest request) {
-
-        return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.SERVICE_UNAVAILABLE);
     }
 
     ///.

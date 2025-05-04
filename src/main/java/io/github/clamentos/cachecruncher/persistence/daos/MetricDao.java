@@ -54,7 +54,7 @@ public class MetricDao extends Dao {
     @Transactional
     public void insert(Collection<Metric> metrics) throws DataAccessException {
 
-        if(metrics != null && !metrics.isEmpty()) {
+        if(!metrics.isEmpty()) {
 
             super.getJdbcTemplate().batchUpdate(INSERT_SQL, metrics, super.getBatchSize(), (preparedStatement, metric) -> {
 
@@ -68,14 +68,8 @@ public class MetricDao extends Dao {
     }
 
     ///..
-    public List<Metric> selectMetricsByFilter(
-
-        Long createdAtStart,
-        Long createdAtEnd,
-        long lastTimestamp,
-        int count
-
-    ) throws DataAccessException {
+    public List<Metric> selectMetricsByFilter(Long createdAtStart, Long createdAtEnd, long lastTimestamp, int count)
+    throws DataAccessException {
 
         return super.getJdbcTemplate().query(
 

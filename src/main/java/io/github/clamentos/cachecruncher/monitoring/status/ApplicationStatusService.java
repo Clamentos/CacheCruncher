@@ -5,7 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 
 ///.
 import io.github.clamentos.cachecruncher.business.services.CacheTraceService;
-
+import io.github.clamentos.cachecruncher.business.services.SessionService;
 ///..
 import io.github.clamentos.cachecruncher.monitoring.logging.LogLevel;
 
@@ -107,6 +107,7 @@ public class ApplicationStatusService {
     ///..
     private final ThreadPoolTaskExecutor simulationsExecutor;
     private final CacheTraceService cacheTraceService;
+    private final SessionService sessionService;
 
     ///..
     private final LogDao logDao;
@@ -135,6 +136,7 @@ public class ApplicationStatusService {
         LogSearchFilterValidator logSearchFilterValidator,
         TaskExecutor simulationsExecutor,
         CacheTraceService cacheTraceService,
+        SessionService sessionService,
         LogDao logDao,
         MetricDao metricDao,
         JsonMapper jsonMapper,
@@ -144,8 +146,9 @@ public class ApplicationStatusService {
         this.responseInfoSearchFilterValidator = searchFilterValidator;
         this.logSearchFilterValidator = logSearchFilterValidator;
 
-        this.simulationsExecutor = (ThreadPoolTaskExecutor) simulationsExecutor;
+        this.simulationsExecutor = (ThreadPoolTaskExecutor)simulationsExecutor;
         this.cacheTraceService = cacheTraceService;
+        this.sessionService = sessionService;
 
         this.logDao = logDao;
         this.metricDao = metricDao;
@@ -169,7 +172,8 @@ public class ApplicationStatusService {
         boolean includeMemoryInfo,
         boolean includeThreadsInfo,
         boolean includeResponsesInfo,
-        boolean includeSimulationInfo
+        boolean includeSimulationInfo,
+        boolean includeSessionsInfo
     ) {
 
         RuntimeInfo runtimeInfo = null;
@@ -247,18 +251,20 @@ public class ApplicationStatusService {
             );
         }
 
+        Integer loggedUsersCount = includeSessionsInfo ? sessionService.getCurrentlyLoggedUsersCount() : null;
+
         return new ApplicationStatusDto(
 
             runtimeInfo,
             memoryInfo,
             threadsInfo,
             responsesInfo,
-            simulationInfo
+            simulationInfo,
+            loggedUsersCount
         );
     }
 
     ///..
-    @SuppressWarnings("unused")
     public ResponsesInfo getResponsesInfoByFilter(ResponseInfoSearchFilter responseInfoSearchFilter)
     throws DataAccessException, IllegalArgumentException {
 
@@ -277,9 +283,9 @@ public class ApplicationStatusService {
 
             metrics
 
-                .computeIfAbsent(fetchedMetric.getSecond(), k -> new HashMap<>())
-                .computeIfAbsent(uriIdMap.get(fetchedMetric.getEndpoint()), k -> new EnumMap<>(HttpStatus.class))
-                .computeIfAbsent(HttpStatus.valueOf(fetchedMetric.getStatus()), k -> new ArrayList<>())
+                .computeIfAbsent(fetchedMetric.getSecond(), _ -> new HashMap<>())
+                .computeIfAbsent(uriIdMap.get(fetchedMetric.getEndpoint()), _ -> new EnumMap<>(HttpStatus.class))
+                .computeIfAbsent(HttpStatus.valueOf(fetchedMetric.getStatus()), _ -> new ArrayList<>())
                 .add(jsonMapper.deserialize(fetchedMetric.getData(), mapTypeRef))
             ;
         }

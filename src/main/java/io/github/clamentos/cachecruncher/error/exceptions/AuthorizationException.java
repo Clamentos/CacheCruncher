@@ -1,10 +1,10 @@
 package io.github.clamentos.cachecruncher.error.exceptions;
 
 ///
-public class SimulationException extends RuntimeException {
+public class AuthorizationException extends SecurityException {
 
     ///
-    public SimulationException(String message) {
+    public AuthorizationException(String message) {
 
         super(message);
     }

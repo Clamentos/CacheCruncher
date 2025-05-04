@@ -63,7 +63,8 @@ public class ApplicationStatusController {
         @RequestParam boolean includeMemoryInfo,
         @RequestParam boolean includeThreadsInfo,
         @RequestParam boolean includeResponsesInfo,
-        @RequestParam boolean includeSimulationInfo
+        @RequestParam boolean includeSimulationInfo,
+        @RequestParam boolean includeSessionsInfo
     ) {
 
         return ResponseEntity.ok(applicationStatusService.getStatistics(
@@ -72,7 +73,8 @@ public class ApplicationStatusController {
             includeMemoryInfo,
             includeThreadsInfo,
             includeResponsesInfo,
-            includeSimulationInfo
+            includeSimulationInfo,
+            includeSessionsInfo
         ));
     }
 

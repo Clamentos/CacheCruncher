@@ -4,25 +4,17 @@ package io.github.clamentos.cachecruncher.web.controllers;
 import io.github.clamentos.cachecruncher.business.services.CacheTraceService;
 
 ///..
-import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundException;
-import io.github.clamentos.cachecruncher.error.exceptions.SimulationException;
-
-///..
-import io.github.clamentos.cachecruncher.web.dtos.report.CacheSimulationReportSummaryDto;
+import io.github.clamentos.cachecruncher.web.dtos.report.CacheSimulationRootReportDto;
+import io.github.clamentos.cachecruncher.web.dtos.report.SimulationSummaryReport;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.simulation.CacheSimulationArgumentsDto;
 
 ///.
-import java.util.Map;
-
-///.
 import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
-import org.springframework.dao.DataAccessException;
-
-///..
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 ///..
@@ -50,13 +42,14 @@ public class CacheSimulationController {
 
     ///
     @GetMapping(consumes = "application/json", produces = "application/json")
-    public ResponseEntity<Map<String, Map<String, CacheSimulationReportSummaryDto>>> simulate(
+    public ResponseEntity<SimulationSummaryReport<CacheSimulationRootReportDto>> simulate(
 
-        @RequestBody CacheSimulationArgumentsDto simulationArgumentsDto
+        @RequestBody CacheSimulationArgumentsDto cacheSimulationArgumentsDto
 
-    ) throws DataAccessException, EntityNotFoundException, IllegalArgumentException, SimulationException {
+    ) throws IllegalArgumentException {
 
-        return ResponseEntity.ok(cacheTraceService.simulate(simulationArgumentsDto));
+        SimulationSummaryReport<CacheSimulationRootReportDto> result = cacheTraceService.simulate(cacheSimulationArgumentsDto);
+        return ResponseEntity.status(result.isFailed() ? HttpStatus.UNPROCESSABLE_ENTITY : HttpStatus.OK).body(result);
     }
 
     ///

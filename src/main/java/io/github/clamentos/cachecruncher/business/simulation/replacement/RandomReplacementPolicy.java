@@ -10,16 +10,16 @@ import java.util.random.RandomGenerator;
 public final class RandomReplacementPolicy implements ReplacementPolicy {
 
     ///
-    private final int associativity;
+    private final RandomGenerator rng;
 
     ///..
-    private final RandomGenerator rng;
+    private final int associativity;
 
     ///
     public RandomReplacementPolicy(int associativity) {
 
-        this.associativity = associativity;
         rng = new Random();
+        this.associativity = associativity;
     }
 
     ///

@@ -24,7 +24,7 @@ public final class CacheTrace {
     ///
     public CacheTrace(long timestamp, String description, String name, String data) {
 
-        this.id = 0;
+        this.id = -1;
 
         createdAt = timestamp;
         updatedAt = timestamp;

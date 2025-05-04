@@ -8,7 +8,7 @@ public final class ErrorFactory {
 
     ///
     // <errorCode>/<message>/args[0]/args[1]/...
-    public static String create(ErrorCode errorCode, String message, Object... args) throws NullPointerException {
+    public static String create(ErrorCode errorCode, String message, Object... args) {
 
         StringBuilder stringBuilder = new StringBuilder(errorCode != null ? errorCode.name() : ErrorCode.getDefault().name());
 

@@ -20,14 +20,14 @@ public final class LatencyDistribution {
     ///
     private final Map<Pair<Integer, Integer>, AtomicInteger> buckets;
     private final AtomicInteger outliersCounter;
-    private final int outliersStartingBoundary;
+    private final String outliersStartingBoundary;
 
     ///
     public LatencyDistribution(List<Pair<Integer, Integer>> breakpoints, int outliersStartingBoundary) {
 
         buckets = new ConcurrentHashMap<>();
         outliersCounter = new AtomicInteger();
-        this.outliersStartingBoundary = outliersStartingBoundary;
+        this.outliersStartingBoundary = Integer.toString(outliersStartingBoundary);
 
         for(Pair<Integer, Integer> breakpoint : breakpoints) {
 
@@ -66,7 +66,7 @@ public final class LatencyDistribution {
             ));
         }
 
-        distribution.add(Map.of(Integer.toString(outliersStartingBoundary), outliersCounter.get()));
+        distribution.add(Map.of(outliersStartingBoundary, outliersCounter.get()));
         return distribution;
     }
 

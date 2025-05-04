@@ -61,7 +61,7 @@ public class LogDao extends Dao {
     @Transactional
     public void insert(Collection<Log> logs) throws DataAccessException {
 
-        if(logs != null && !logs.isEmpty()) {
+        if(!logs.isEmpty()) {
 
             super.getJdbcTemplate().batchUpdate(INSERT_SQL, logs, super.getBatchSize(), (preparedStatement, log) -> {
 
@@ -75,20 +75,6 @@ public class LogDao extends Dao {
     }
 
     ///..
-    /**
-     * Select all the logs that obey the specified parameters.
-     * @param createdAtStart : The start of the creation date range.
-     * @param createdAtEnd : The end of the creation date range.
-     * @param levels : The desired log levels. (cannot be {@code null} or empty).
-     * @param threadLike : The thread name pattern.
-     * @param loggerLike : The logger name pattern.
-     * @param messageLike : The log message pattern.
-     * @param lastTimestamp : The log timestamp for pagination.
-     * @param count : The maximum number of logs to be selected for pagination.
-     * @return The never {@code null} list of selected logs.
-     * @throws DataAccessException If any database access error occurs.
-     * @throws NullPointerException If {@code levels} is {@code null}.
-    */
     public List<Log> selectLogsByFilter(
 
         long createdAtStart,

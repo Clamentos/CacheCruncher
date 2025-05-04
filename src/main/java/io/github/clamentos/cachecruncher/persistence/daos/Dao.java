@@ -23,7 +23,7 @@ public abstract class Dao {
     protected Dao(JdbcTemplate jdbcTemplate, Environment environment) {
 
         this.jdbcTemplate = jdbcTemplate;
-        batchSize = environment.getProperty("cache-cruncher.jdbc.batch_size", Integer.class, 64);
+        batchSize = environment.getProperty("cache-cruncher.jdbc.batchSize", Integer.class, 64);
     }
 
     ///

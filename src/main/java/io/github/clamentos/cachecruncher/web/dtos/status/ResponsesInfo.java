@@ -20,8 +20,6 @@ public final class ResponsesInfo {
 
     ///
     private final Map<String, Integer> uriIdMap;
-
-    ///..
     private final Map<Integer, Map<Integer, Map<HttpStatus, List<Map<String, Integer>>>>> metrics;
 
     ///

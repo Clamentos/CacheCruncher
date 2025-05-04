@@ -75,7 +75,7 @@ public class CacheTraceController {
 
     ) throws DataAccessException {
 
-        return ResponseEntity.ok(cacheTraceService.getMinimalByNameLikeAndDates(
+        return ResponseEntity.ok(cacheTraceService.getByFilter(
 
             name,
             createdAtStart,
@@ -96,9 +96,9 @@ public class CacheTraceController {
 
     ///..
     @DeleteMapping
-    public ResponseEntity<Void> deleteById(@RequestParam long id) throws DataAccessException {
+    public ResponseEntity<Void> deleteById(@RequestParam long id) throws DataAccessException, EntityNotFoundException {
 
-        cacheTraceService.deleteById(id);
+        cacheTraceService.delete(id);
         return ResponseEntity.ok().build();
     }
 

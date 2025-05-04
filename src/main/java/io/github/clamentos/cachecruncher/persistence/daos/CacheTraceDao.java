@@ -36,13 +36,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class CacheTraceDao extends Dao {
 
     ///
-    private static final String INSERT = "INSERT INTO cache_trace (created_at,updated_at,description,name,data) VALUES (?,?,?,?,?)";
-    private static final String SELECT_BY_ID = "SELECT id,created_at,updated_at,description,name,data FROM cache_trace WHERE id = ?";
+    private static final String INSERT_SQL = "INSERT INTO cache_trace (created_at,updated_at,description,name,data) VALUES (?,?,?,?,?)";
+    private static final String SELECT_BY_ID_SQL = "SELECT id,created_at,updated_at,description,name,data FROM cache_trace WHERE id = ?";
 
-    private static final String SELECT_MINIMAL = "SELECT id,created_at,updated_at,description,name FROM cache_trace WHERE name like ? AND created_at BETWEEN ? AND ? AND updated_at BETWEEN ? AND ?";
+    private static final String SELECT_BY_FILTER_SQL = "SELECT id,created_at,updated_at,description,name FROM cache_trace WHERE name like ? AND created_at BETWEEN ? AND ? AND updated_at BETWEEN ? AND ?";
 
-    private static final String UPDATE = "UPDATE cache_trace SET updated_at = ?, description = ?, name = ?, data = ? WHERE id = ?";
-    private static final String DELETE_BY_ID = "DELETE FROM cache_trace WHERE id = ?";
+    private static final String UPDATE_SQL = "UPDATE cache_trace SET updated_at = ?, description = ?, name = ?, data = ? WHERE id = ?";
+    private static final String DELETE_SQL = "DELETE FROM cache_trace WHERE id = ?";
 
     ///
     @Autowired
@@ -53,9 +53,9 @@ public class CacheTraceDao extends Dao {
 
     ///
     @Transactional
-    public void insert(CacheTrace cacheTrace) throws DataAccessException, NullPointerException {
+    public void insert(CacheTrace cacheTrace) throws DataAccessException {
 
-        super.getJdbcTemplate().update(INSERT, preparedStatement -> {
+        super.getJdbcTemplate().update(INSERT_SQL, preparedStatement -> {
 
             preparedStatement.setLong(1, cacheTrace.getCreatedAt());
             preparedStatement.setLong(2, cacheTrace.getUpdatedAt());
@@ -70,7 +70,7 @@ public class CacheTraceDao extends Dao {
 
         return super.getJdbcTemplate().query(
 
-            SELECT_BY_ID,
+            SELECT_BY_ID_SQL,
             preparedStatement -> preparedStatement.setLong(1, id),
             this::mapResultSetSingle
         );
@@ -89,7 +89,7 @@ public class CacheTraceDao extends Dao {
 
         return super.getJdbcTemplate().query(
 
-            SELECT_MINIMAL,
+            SELECT_BY_FILTER_SQL,
 
             preparedStatement -> {
 
@@ -108,7 +108,7 @@ public class CacheTraceDao extends Dao {
     @Transactional
     public void update(CacheTrace cacheTrace) {
 
-        super.getJdbcTemplate().update(UPDATE, preparedStatement -> {
+        super.getJdbcTemplate().update(UPDATE_SQL, preparedStatement -> {
 
             preparedStatement.setLong(1, cacheTrace.getUpdatedAt());
             preparedStatement.setString(2, cacheTrace.getDescription());
@@ -120,11 +120,11 @@ public class CacheTraceDao extends Dao {
 
     ///..
     @Transactional
-    public void delete(long id) throws DataAccessException {
+    public int delete(long id) throws DataAccessException {
 
-        super.getJdbcTemplate().update(
+        return super.getJdbcTemplate().update(
 
-            DELETE_BY_ID,
+            DELETE_SQL,
             preparedStatement -> preparedStatement.setLong(1, id)
         );
     }
