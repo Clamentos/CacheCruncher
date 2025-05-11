@@ -68,7 +68,11 @@ public abstract class BasicValidator {
 
         if(val == null || val.compareTo(low) < 0 || val.compareTo(high) > 0) {
 
-            throw this.fail("BasicValidator.requireBetween -> Argument cannot be null and must be between " + low + " and " + high, name);
+            throw this.fail(
+
+                "BasicValidator.requireBetween -> Argument cannot be null and must be between " + low + " and " + high,
+                name
+            );
         }
     }
 

@@ -61,7 +61,7 @@ public class CacheSimulationService {
 
             if(commandType != CacheCommandType.REPEAT) {
 
-                cycleCounter += this.doSimpleCommandOnCache(commandType, command, cache);
+                cycleCounter += this.doSimpleCommand(commandType, command, cache, simulationFlags);
                 commandCounter += this.updateCommandCounter(commandType);
             }
 
@@ -77,16 +77,11 @@ public class CacheSimulationService {
 
                     for(String sectionCommand : section) {
 
-                        cycleCounter += this.doSimpleCommandOnCache(sectionCommandType, sectionCommand, cache);
+                        cycleCounter += this.doSimpleCommand(sectionCommandType, sectionCommand, cache, simulationFlags);
                         commandCounter += this.updateCommandCounter(commandType);
                     }
                 }
             }
-        }
-
-        if(simulationFlags.contains(SimulationFlag.FLUSH_ON_TERMINATION)) {
-
-            cache.flush();
         }
 
         double averageMemoryAccessTime = commandCounter > 0 ? (double)cycleCounter / (double)commandCounter : -1;
@@ -126,35 +121,42 @@ public class CacheSimulationService {
     }
 
     ///..
-    private long doSimpleCommandOnCache(CacheCommandType commandType, String command, Cache cache) {
+    private long doSimpleCommand(CacheCommandType commandType, String command, Cache cache, Set<SimulationFlag> simulationFlags) {
 
         switch(commandType) {
 
-            case READ, WRITE, PREFETCH:
+            case READ, WRITE: return this.doReadWritePrefetch(commandType, command, cache);
 
-                long cycles = 0;
-                CacheCommandArguments arguments = this.parseReadWritePrefetch(command);
-
-                for(int i = 0; i < arguments.getSize(); i++) {
-
-                    long address = arguments.getAddress() + i;
-
-                    switch(commandType) {
-
-                        case READ: cycles += cache.read(address); break;
-                        case WRITE: cycles += cache.write(address); break;
-
-                        default: cycles += cache.prefetch(address); break;
-                    }
-                }
-
-            return cycles;
+            case PREFETCH: return simulationFlags.contains(SimulationFlag.IGNORE_PREFETCHES) ? 0 : this.doReadWritePrefetch(commandType, command, cache);
 
             case FLUSH: return cache.flush();
             case INVALIDATE: return cache.invalidate(Integer.parseInt(command.substring(2)));
+            case NOOP: return simulationFlags.contains(SimulationFlag.IGNORE_NOOPS) ? 0 : cache.noop();
 
             default: return cache.noop();
         }
+    }
+
+    ///..
+    private long doReadWritePrefetch(CacheCommandType commandType, String command, Cache cache) {
+
+        long cycles = 0;
+        CacheCommandArguments arguments = this.parseReadWritePrefetch(command);
+
+        for(int i = 0; i < arguments.getSize(); i++) {
+
+            long address = arguments.getAddress() + i;
+
+            switch(commandType) {
+
+                case READ: cycles += cache.read(address); break;
+                case WRITE: cycles += cache.write(address); break;
+
+                default: cycles += cache.prefetch(address); break;
+            }
+        }
+
+        return cycles;
     }
 
     ///..

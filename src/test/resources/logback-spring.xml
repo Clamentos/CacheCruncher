@@ -1,0 +1,34 @@
+<?xml version = "1.0" encoding = "UTF-8"?>
+<configuration>
+
+    <conversionRule
+        conversionWord = "highlightex"
+        class = "io.github.clamentos.cachecruncher.monitoring.logging.ConsoleColorConverter"
+    />
+
+    <appender name = "STDOUT" class = "ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>
+                [ %blue(%d{dd-MM-yyyy HH:mm:ss.SSS}) ][ %highlightex(%-5p) ][ %magenta(%t) ][ %cyan(%logger{0}) ][ %m%ex ]%n
+            </pattern>
+        </encoder>
+    </appender>
+
+    <appender name = "ROLLER" class = "ch.qos.logback.core.rolling.RollingFileAppender">
+
+        <rollingPolicy class = "ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>./logs_test/CacheCruncher.%d{yyyy-MM-dd_HH-mm}.log</fileNamePattern>
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>|%d{dd-MM-yyyy HH:mm:ss.SSS}|%-5p|%t|%logger{0}|%replace(%m %ex){'\n','~'}|%n</pattern>
+        </encoder>
+
+    </appender>
+
+    <root level = "info">
+        <appender-ref ref = "STDOUT"/>
+        <appender-ref ref = "ROLLER"/>
+    </root>
+
+</configuration>

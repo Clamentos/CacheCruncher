@@ -59,7 +59,7 @@ public class UserController {
     }
 
     ///
-    @PostMapping(path = "/register", consumes = "application/json")
+    @PostMapping(path = "/register")
     public ResponseEntity<Void> register(@RequestParam String email, @RequestParam String password)
     throws DataAccessException, EntityAlreadyExistsException, IllegalArgumentException {
 
@@ -69,15 +69,15 @@ public class UserController {
 
     ///..
     @PostMapping(path = "/login", produces = "application/json")
-    public ResponseEntity<User> login(
+    public ResponseEntity<Pair<User, Long>> login(
 
-        @RequestParam String username,
+        @RequestParam String email,
         @RequestParam String password,
         @RequestHeader(name = "User-Agent") String device
 
     ) throws AuthenticationException, DataAccessException {
 
-        Pair<User, Session> loginResult =  userService.login(username, password, device);
+        Pair<User, Session> loginResult =  userService.login(email, password, device);
         HttpHeaders headers = new HttpHeaders();
 
         headers.add(
@@ -89,7 +89,12 @@ public class UserController {
             "HttpOnly"
         );
 
-        return new ResponseEntity<>(loginResult.getA(), headers, HttpStatus.OK);
+        return new ResponseEntity<>(
+
+            new Pair<>(loginResult.getA(), loginResult.getB().getExpiresAt()),
+            headers,
+            HttpStatus.OK
+        );
     }
 
     ///..
