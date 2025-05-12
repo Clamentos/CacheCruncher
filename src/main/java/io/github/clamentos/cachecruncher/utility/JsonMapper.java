@@ -11,7 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 ///.
 import io.github.clamentos.cachecruncher.error.ErrorCode;
-import io.github.clamentos.cachecruncher.error.ErrorFactory;
+import io.github.clamentos.cachecruncher.error.ErrorDetails;
 
 ///.
 import lombok.extern.slf4j.Slf4j;
@@ -50,12 +50,7 @@ public class JsonMapper {
         catch(JsonProcessingException exc) {
 
             log.error("Could not serialize JSON", exc);
-
-            throw new IllegalArgumentException(ErrorFactory.create(
-
-                ErrorCode.VALIDATOR_BAD_FORMAT,
-                "JsonMapper.serialize -> Could not serialize JSON"
-            ));
+            throw new IllegalArgumentException(new ErrorDetails(ErrorCode.SERIALIZATION_ERROR));
         }
     }
 
@@ -64,7 +59,7 @@ public class JsonMapper {
 
         if(object == null || type == null) {
 
-            throw new IllegalArgumentException("Arguments cannot be null");
+            throw new IllegalArgumentException("Method arguments cannot be null");
         }
 
         try {
@@ -74,13 +69,8 @@ public class JsonMapper {
 
         catch(JsonProcessingException exc) {
 
-            log.error("Could not serialize JSON", exc);
-
-            throw new IllegalArgumentException(ErrorFactory.create(
-
-                ErrorCode.VALIDATOR_BAD_FORMAT,
-                "JsonMapper.deserialize -> Could not deserialize JSON"
-            ));
+            log.error("Could not deserialize JSON", exc);
+            throw new IllegalArgumentException(new ErrorDetails(ErrorCode.DESERIALIZATION_ERROR));
         }
     }
 

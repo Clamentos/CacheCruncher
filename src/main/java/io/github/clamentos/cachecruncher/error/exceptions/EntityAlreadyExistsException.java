@@ -1,12 +1,15 @@
 package io.github.clamentos.cachecruncher.error.exceptions;
 
 ///
+import io.github.clamentos.cachecruncher.error.ErrorDetails;
+
+///
 public final class EntityAlreadyExistsException extends RuntimeException {
 
     ///
-    public EntityAlreadyExistsException(String message) {
+    public EntityAlreadyExistsException(ErrorDetails errorDetails) {
 
-        super(message);
+        super(errorDetails.getErrorCode().getMessage(), errorDetails);
     }
 
     ///

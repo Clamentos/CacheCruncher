@@ -2,7 +2,7 @@ package io.github.clamentos.cachecruncher.business.services;
 
 ///
 import io.github.clamentos.cachecruncher.error.ErrorCode;
-import io.github.clamentos.cachecruncher.error.ErrorFactory;
+import io.github.clamentos.cachecruncher.error.ErrorDetails;
 
 ///..
 import io.github.clamentos.cachecruncher.error.exceptions.AuthenticationException;
@@ -126,60 +126,40 @@ public class SessionService {
 
         if(totalLoggedUsersCounter.getAndUpdate(current -> this.updateCounter(current, maxTotalLoggedUsers)) >= maxTotalLoggedUsers) {
 
-            throw new AuthorizationException(ErrorFactory.create(
-
-                ErrorCode.TOO_MANY_USERS,
-                "SessionService.generate -> Could not create session, too many logged users",
-                maxTotalLoggedUsers
-            ));
+            throw new AuthorizationException(new ErrorDetails(ErrorCode.TOO_MANY_USERS, maxTotalLoggedUsers));
         }
 
         AtomicInteger userSessionCount = userSessionCounters.computeIfAbsent(userId, _ -> new AtomicInteger());
 
         if(userSessionCount.getAndUpdate(current -> this.updateCounter(current, maxSessionsPerUser)) >= maxSessionsPerUser) {
 
-            throw new AuthorizationException(ErrorFactory.create(
-
-                ErrorCode.TOO_MANY_SESSIONS, 
-                "SessionService.generate -> Could not create session, user has too many",
-                maxSessionsPerUser
-            ));
+            throw new AuthorizationException(new ErrorDetails(ErrorCode.TOO_MANY_SESSIONS, maxSessionsPerUser));
         }
 
         return session;
     }
 
     ///..
-    public Session check(String sessionId, boolean requiresAdmin, String message) throws AuthenticationException, AuthorizationException {
+    public Session check(String sessionId, boolean requiresAdmin, String message)
+    throws AuthenticationException, AuthorizationException {
 
         Session session = sessions.get(sessionId);
 
         if(session == null) {
 
-            throw new AuthenticationException(ErrorFactory.create(
-
-                ErrorCode.SESSION_NOT_FOUND,
-                "SessionService.check -> Session not found"
-            ));
+            throw new AuthorizationException(new ErrorDetails(ErrorCode.SESSION_NOT_FOUND));
         }
 
-        if(session.getExpiresAt() - sessionExpirationMargin < System.currentTimeMillis()) {
+        long expiration = session.getExpiresAt() - sessionExpirationMargin;
 
-            throw new AuthenticationException(ErrorFactory.create(
+        if(expiration < System.currentTimeMillis()) {
 
-                ErrorCode.EXPIRED_SESSION,
-                "SessionService.check -> Session expired",
-                session.getExpiresAt() - sessionExpirationMargin
-            ));
+            throw new AuthenticationException(new ErrorDetails(ErrorCode.EXPIRED_SESSION, expiration));
         }
 
         if(requiresAdmin && !session.isAdmin()) {
 
-            throw new AuthorizationException(ErrorFactory.create(
-
-                ErrorCode.NOT_ENOUGH_PRIVILEGES,
-                "SessionService.check -> " + message
-            ));
+            throw new AuthorizationException(new ErrorDetails(ErrorCode.NOT_ENOUGH_PRIVILEGES, message));
         }
 
         return session;
@@ -192,11 +172,7 @@ public class SessionService {
 
         if(sessionToBeRemoved == null) {
 
-            throw new AuthenticationException(ErrorFactory.create(
-
-                ErrorCode.SESSION_NOT_FOUND,
-                "SessionService.removeInternal -> Session not found"
-            ));
+            throw new AuthorizationException(new ErrorDetails(ErrorCode.SESSION_NOT_FOUND));
         }
 
         sessionDao.delete(sessionToBeRemoved.getId());
@@ -221,7 +197,7 @@ public class SessionService {
                     this.remove(session.getId());
                 }
 
-                catch(AuthenticationException exc) {
+                catch(AuthenticationException _) {
 
                     log.warn("Session not found");
                 }
@@ -247,7 +223,7 @@ public class SessionService {
 
     ///.
     @Scheduled(cron = "0 */5 * * * *")
-    protected void removeAllExpired() {
+    public void removeAllExpired() {
 
         log.info("Starting expired session cleaning task...");
 

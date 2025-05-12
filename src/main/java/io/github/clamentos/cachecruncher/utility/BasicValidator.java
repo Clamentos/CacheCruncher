@@ -2,7 +2,7 @@ package io.github.clamentos.cachecruncher.utility;
 
 ///
 import io.github.clamentos.cachecruncher.error.ErrorCode;
-import io.github.clamentos.cachecruncher.error.ErrorFactory;
+import io.github.clamentos.cachecruncher.error.ErrorDetails;
 
 ///.
 import java.util.Collection;
@@ -79,7 +79,7 @@ public abstract class BasicValidator {
     ///.
     protected IllegalArgumentException fail(String message, String name) {
 
-        return new IllegalArgumentException(ErrorFactory.create(ErrorCode.VALIDATOR_BAD_FORMAT, message, name));
+        return new IllegalArgumentException(new ErrorDetails(ErrorCode.VALIDATOR_BAD_FORMAT, name, message));
     }
 
     ///

@@ -8,7 +8,7 @@ import io.github.clamentos.cachecruncher.business.validation.UserValidator;
 
 ///..
 import io.github.clamentos.cachecruncher.error.ErrorCode;
-import io.github.clamentos.cachecruncher.error.ErrorFactory;
+import io.github.clamentos.cachecruncher.error.ErrorDetails;
 
 ///..
 import io.github.clamentos.cachecruncher.error.exceptions.AuthenticationException;
@@ -93,12 +93,7 @@ public class UserService {
 
         if(userDao.exists(email)) {
 
-            throw new EntityAlreadyExistsException(ErrorFactory.create(
-
-                ErrorCode.USER_ALREADY_EXISTS,
-                "UserService.register -> User already exists",
-                email
-            ));
+            throw new EntityAlreadyExistsException(new ErrorDetails(ErrorCode.USER_ALREADY_EXISTS, email));
         }
 
         String encryptedPassword = BCrypt.withDefaults().hashToString(bcryptEffort, password.toCharArray());
@@ -113,24 +108,14 @@ public class UserService {
 
         if(user == null) {
 
-            throw new AuthenticationException(ErrorFactory.create(
-
-                ErrorCode.USER_NOT_FOUND,
-                "UserService.login -> User not found",
-                email
-            ));
+            throw new AuthenticationException(new ErrorDetails(ErrorCode.USER_NOT_FOUND, email));
         }
 
         long now = System.currentTimeMillis();
 
         if(user.getLockedUntil() != null && user.getLockedUntil() >= now) {
 
-            throw new AuthorizationException(ErrorFactory.create(
-
-                ErrorCode.USER_LOCKED,
-                "UserService.login -> User is locked because of too many failed login attempts",
-                user.getLockedUntil()
-            ));
+            throw new AuthorizationException(new ErrorDetails(ErrorCode.USER_LOCKED, user.getLockedUntil()));
         }
 
         short failedAccesses = user.getFailedAccesses();
@@ -168,7 +153,7 @@ public class UserService {
             userDao.updateForLogin(user.getId(), lockedUntil, (short)(failedAccesses + 1));
             if(doLock) sessionService.removeAll(user.getId());
 
-            throw new WrongPasswordException(ErrorFactory.create(ErrorCode.WRONG_PASSWORD, "UserService::login -> Wrong password"));
+            throw new WrongPasswordException(new ErrorDetails(ErrorCode.WRONG_PASSWORD));
         }
     }
 
@@ -209,12 +194,7 @@ public class UserService {
 
         if(privilege == null) {
 
-            throw new AuthenticationException(ErrorFactory.create(
-
-                ErrorCode.USER_NOT_FOUND,
-                "UserService::delete -> User not found",
-                userId
-            ));
+            throw new EntityNotFoundException(new ErrorDetails(ErrorCode.USER_NOT_FOUND, userId));
         }
 
         if(userId != session.getUserId()) {

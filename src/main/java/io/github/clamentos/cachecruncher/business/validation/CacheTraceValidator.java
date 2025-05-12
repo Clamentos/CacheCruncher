@@ -5,7 +5,7 @@ import io.github.clamentos.cachecruncher.business.simulation.CacheCommandType;
 
 ///..
 import io.github.clamentos.cachecruncher.error.ErrorCode;
-import io.github.clamentos.cachecruncher.error.ErrorFactory;
+import io.github.clamentos.cachecruncher.error.ErrorDetails;
 
 ///..
 import io.github.clamentos.cachecruncher.utility.BasicValidator;
@@ -104,11 +104,10 @@ public class CacheTraceValidator extends BasicValidator {
 
                 if(commandType == CacheCommandType.REPEAT) {
 
-                    throw new IllegalArgumentException(ErrorFactory.create(
+                    throw new IllegalArgumentException(new ErrorDetails(
 
                         ErrorCode.ILLEGAL_COMMAND_TYPE,
-                        "DtoValidator.validateData -> Cannot use REPEAT command in sections",
-                        CacheCommandType.REPEAT
+                        "Cannot use REPEAT command in sections"
                     ));
                 }
 

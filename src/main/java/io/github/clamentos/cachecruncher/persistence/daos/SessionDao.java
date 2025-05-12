@@ -91,8 +91,9 @@ public class SessionDao extends Dao {
 
             while(start < idsList.size()) {
 
-                deleted += this.doDelete(idsList.subList(start, start + batchSize));
-                start += batchSize;
+                int end = Math.min(start + batchSize, idsList.size());
+                deleted += this.doDelete(idsList.subList(start, end));
+                start += end;
             }
         }
 
@@ -127,10 +128,10 @@ public class SessionDao extends Dao {
 
         for(String id : ids) {
 
-            idsString.append(id).append(",");
+            idsString.append("\"").append(id).append("\",");
         }
 
-        idsString.deleteCharAt(idsString.length()).append(")");
+        idsString.deleteCharAt(idsString.length() - 1).append(")");
         return super.getJdbcTemplate().update(DELETE_ALL_BY_IDS_SQL + idsString);
     }
 

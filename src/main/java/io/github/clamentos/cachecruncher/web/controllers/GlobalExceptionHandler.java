@@ -2,6 +2,7 @@ package io.github.clamentos.cachecruncher.web.controllers;
 
 ///
 import io.github.clamentos.cachecruncher.error.ErrorCode;
+import io.github.clamentos.cachecruncher.error.ErrorDetails;
 
 ///..
 import io.github.clamentos.cachecruncher.error.exceptions.AuthenticationException;
@@ -15,6 +16,7 @@ import java.net.URI;
 ///..
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 ///.
 import org.springframework.dao.DataAccessException;
@@ -92,38 +94,31 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private ResponseEntity<ProblemDetail> constructErrorFromExceptionMessage(Throwable exc, WebRequest request, HttpStatus status) {
 
         String message = exc.getMessage() != null ? exc.getMessage() : "";
-        String[] splits = message.split("/");
-
         ErrorCode errorCode = ErrorCode.getDefault();
-        String title = null;
+        Throwable cause = exc.getCause();
         List<String> arguments = new ArrayList<>();
 
-        if(splits.length >= 1) {
+        if(cause instanceof ErrorDetails details) {
 
-            errorCode = ErrorCode.valueOf(splits[0]);
-        }
+            errorCode = details.getErrorCode();
+            
+            if(details.getArguments() != null) {
 
-        if(splits.length >= 2) {
+                for(Object argument : details.getArguments()) {
 
-            title = splits[1];
-        }
-
-        if(splits.length >= 3) {
-
-            for(int i = 2; i < splits.length; i++) {
-
-                arguments.add(splits[i]);
+                    arguments.add(Objects.toString(argument));
+                }
             }
         }
 
-        ProblemDetail payload = ProblemDetail.forStatus(status);
+        ProblemDetail payload = ProblemDetail.forStatus(status);    // 403
 
-        payload.setType(URI.create(errorCode.toString()));      // "NOT_ENOUGH_PRIVILEGES"
-        payload.setTitle(status.getReasonPhrase());             // "Forbidden"
-        payload.setDetail(title);                               // "Not enough privileges to call this API"
+        payload.setType(URI.create(errorCode.toString()));          // "NOT_ENOUGH_PRIVILEGES"
+        payload.setTitle(status.getReasonPhrase());                 // "Forbidden"
+        payload.setDetail(message);                                 // "Not enough privileges to call this API"
         payload.setInstance(URI.create(((ServletWebRequest)request).getRequest().getRequestURI())); // "http://..."
 
-        payload.setProperty("timestamp", System.currentTimeMillis());   // 123456789...
+        payload.setProperty("timestamp", System.currentTimeMillis());
         payload.setProperty("detailArguments", arguments);              // [...]
 
         return ResponseEntity.status(status).body(payload);

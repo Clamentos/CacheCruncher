@@ -12,7 +12,7 @@ import io.github.clamentos.cachecruncher.business.validation.SimulationArguments
 
 ///..
 import io.github.clamentos.cachecruncher.error.ErrorCode;
-import io.github.clamentos.cachecruncher.error.ErrorFactory;
+import io.github.clamentos.cachecruncher.error.ErrorDetails;
 
 ///..
 import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundException;
@@ -137,9 +137,9 @@ public class CacheTraceService {
     }
 
     ///..
-    public CacheTraceDto getById(long id) throws DataAccessException, EntityNotFoundException {
+    public CacheTraceDto getById(long traceId) throws DataAccessException, EntityNotFoundException {
 
-        CacheTrace cacheTraceEntities = cacheTraceDao.selectById(id);
+        CacheTrace cacheTraceEntities = cacheTraceDao.selectById(traceId);
 
         if(cacheTraceEntities != null) {
 
@@ -154,7 +154,7 @@ public class CacheTraceService {
             );
         }
 
-        throw this.createNotFoundException("getById", id);
+        throw this.createNotFoundException(traceId);
     }
 
     ///..
@@ -201,12 +201,12 @@ public class CacheTraceService {
 
         cacheTraceValidator.validateForUpdate(cacheTraceDto);
 
-        Long id = cacheTraceDto.getId();
-        CacheTrace cacheTraceEntity = cacheTraceDao.selectById(id);
+        Long traceId = cacheTraceDto.getId();
+        CacheTrace cacheTraceEntity = cacheTraceDao.selectById(traceId);
 
         if(cacheTraceEntity == null) {
 
-            throw this.createNotFoundException("update", id);
+            throw this.createNotFoundException(traceId);
         }
 
         if(cacheTraceDto.getName() != null) cacheTraceEntity.setName(cacheTraceDto.getName());
@@ -219,11 +219,11 @@ public class CacheTraceService {
 
     ///..
     @Transactional
-    public void delete(long id) throws DataAccessException, EntityNotFoundException {
+    public void delete(long traceId) throws DataAccessException, EntityNotFoundException {
 
-        if(cacheTraceDao.delete(id) == 0) {
+        if(cacheTraceDao.delete(traceId) == 0) {
 
-            throw this.createNotFoundException("delete", id);
+            throw this.createNotFoundException(traceId);
         }
     }
 
@@ -339,14 +339,9 @@ public class CacheTraceService {
     }
 
     ///.
-    private EntityNotFoundException createNotFoundException(String methodName, long id) {
+    private EntityNotFoundException createNotFoundException(long traceId) {
 
-        return new EntityNotFoundException(ErrorFactory.create(
-
-            ErrorCode.CACHE_TRACE_NOT_FOUND,
-            "CacheTraceService." + methodName + " -> The specified cache trace does not exist",
-            id
-        ));
+        return new EntityNotFoundException(new ErrorDetails(ErrorCode.CACHE_TRACE_NOT_FOUND, traceId));
     }
 
     ///..

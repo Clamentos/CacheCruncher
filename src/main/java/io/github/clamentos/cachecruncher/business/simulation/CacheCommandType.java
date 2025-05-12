@@ -2,7 +2,7 @@ package io.github.clamentos.cachecruncher.business.simulation;
 
 ///
 import io.github.clamentos.cachecruncher.error.ErrorCode;
-import io.github.clamentos.cachecruncher.error.ErrorFactory;
+import io.github.clamentos.cachecruncher.error.ErrorDetails;
 
 ///
 public enum CacheCommandType {
@@ -34,12 +34,7 @@ public enum CacheCommandType {
         if(opcode == 'F') return FLUSH;
         if(opcode == 'I') return INVALIDATE;
 
-        throw new IllegalArgumentException(ErrorFactory.create(
-
-            ErrorCode.UNKNOWN_COMMAND_TYPE,
-            "CommandType.determineType -> Unknown command type",
-            command
-        ));
+        throw new IllegalArgumentException(new ErrorDetails(ErrorCode.UNKNOWN_COMMAND_TYPE, command));
     }
 
     ///

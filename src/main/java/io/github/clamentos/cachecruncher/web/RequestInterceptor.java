@@ -5,7 +5,7 @@ import io.github.clamentos.cachecruncher.business.services.SessionService;
 
 ///..
 import io.github.clamentos.cachecruncher.error.ErrorCode;
-import io.github.clamentos.cachecruncher.error.ErrorFactory;
+import io.github.clamentos.cachecruncher.error.ErrorDetails;
 
 ///..
 import io.github.clamentos.cachecruncher.error.exceptions.AuthenticationException;
@@ -81,17 +81,19 @@ public class RequestInterceptor implements HandlerInterceptor {
 
             if(header != null) {
 
-                Session session = sessionService.check(header, authorizationMappings.get(key), "Not enough privileges to call this API");
+                Session session = sessionService.check(
+
+                    header,
+                    authorizationMappings.get(key),
+                    "Not enough privileges to call this API"
+                );
+
                 request.setAttribute(ATTRIBUTE_NAME, session);
             }
 
             else {
 
-                throw new AuthenticationException(ErrorFactory.create(
-
-                    ErrorCode.INVALID_AUTH_HEADER,
-                    "RequestInterceptor::preHandle -> Bad or missing auth header"
-                ));
+                throw new AuthenticationException(new ErrorDetails(ErrorCode.INVALID_AUTH_HEADER));
             }
         }
 
