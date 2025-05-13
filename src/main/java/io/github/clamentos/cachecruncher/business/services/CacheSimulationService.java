@@ -92,7 +92,7 @@ public class CacheSimulationService {
             beginTimestamp,
             System.currentTimeMillis(),
             averageMemoryAccessTime,
-            cache.getSimulationReport()
+            cache.getSimulationReportDto()
         );
 
         return CompletableFuture.completedFuture(summary);

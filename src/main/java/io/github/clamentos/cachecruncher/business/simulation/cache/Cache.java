@@ -15,8 +15,11 @@ import io.github.clamentos.cachecruncher.web.dtos.report.MemorySimulationReportD
 import java.util.ArrayList;
 import java.util.List;
 
+///.
+import lombok.Getter;
+
 ///
-public class Cache { // FIXME: finish
+public class Cache {
 
     ///
     private final int ramAccessTime;
@@ -27,6 +30,7 @@ public class Cache { // FIXME: finish
     private final Cache nextLevelCache;
 
     ///..
+    @Getter
     private final CacheSimulationReportDto simulationReportDto;
 
     ///..
@@ -80,7 +84,7 @@ public class Cache { // FIXME: finish
 
             nextLevelCache == null ?
             new MemorySimulationReportDto() :
-            nextLevelCache.getSimulationReport()
+            nextLevelCache.getSimulationReportDto()
         );
 
         long indexMaskTmp = 0;
@@ -220,21 +224,48 @@ public class Cache { // FIXME: finish
     ///..
     public long flush() {
 
-        // ...
-        return 1;
+        long cycleCounter = 0;
+
+        for(List<CacheLine> lines : sets) {
+
+            for(CacheLine line : lines) {
+
+                line.setValid(false);
+                cycleCounter += ramAccessTime;
+            }
+        }
+
+        if(nextLevelCache != null) {
+
+            cycleCounter += nextLevelCache.flush();
+        }
+
+        return cycleCounter;
     }
 
     ///..
     public long invalidate(long address) {
 
-        // ...
-        return 1;
-    }
+        long cycleCounter = 0;
+        long tagFromAddress = address >> tagShiftAmount;
+        int index = this.extractIndex(address);
+        List<CacheLine> ways = sets.get(index);
 
-    ///..
-    public CacheSimulationReportDto getSimulationReport() {
+        for(CacheLine way : ways) {
 
-        return simulationReportDto;
+            if(way.getTag() == tagFromAddress) {
+
+                way.setValid(false);
+                cycleCounter++;
+            }
+        }
+
+        if(nextLevelCache != null) {
+
+            cycleCounter += nextLevelCache.invalidate(address);
+        }
+
+        return cycleCounter;
     }
 
     ///.
@@ -243,11 +274,11 @@ public class Cache { // FIXME: finish
         if(isWriteMode) simulationReportDto.setWriteRequests(simulationReportDto.getWriteRequests() + 1);
         else simulationReportDto.setReadRequests(simulationReportDto.getReadRequests() + 1);
 
+        long tagFromAddress = address >> tagShiftAmount;
         List<CacheLine> cacheSet = sets.get(index);
 
         for(int i = 0; i < cacheSet.size(); i++) {
 
-            long tagFromAddress = address >> tagShiftAmount;
             CacheLine cacheLine = cacheSet.get(i);
 
             if(cacheLine.isValid() && cacheLine.getTag() == tagFromAddress) {
