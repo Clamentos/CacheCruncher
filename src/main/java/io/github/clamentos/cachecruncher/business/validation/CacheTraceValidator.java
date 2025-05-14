@@ -152,11 +152,20 @@ public class CacheTraceValidator extends BasicValidator {
 
             break;
 
-            case NOOP, FLUSH:
+            case NOOP:
+
+                if(command.length() > 1 && !digitsPattern.matcher(command.substring(1)).matches()) {
+
+                    throw super.fail("CacheTraceValidator.validateCommandSyntax -> Malformed NOOP command", command);
+                }
+
+            break;
+
+            case FLUSH:
 
                 if(command.length() != 1) {
 
-                    throw super.fail("CacheTraceValidator.validateCommandSyntax -> Malformed NOOP or FLUSH command", command);
+                    throw super.fail("CacheTraceValidator.validateCommandSyntax -> Malformed FLUSH command", command);
                 }
 
             break;

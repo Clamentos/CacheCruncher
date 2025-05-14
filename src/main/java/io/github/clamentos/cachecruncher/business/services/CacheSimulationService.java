@@ -131,9 +131,9 @@ public class CacheSimulationService {
 
             case FLUSH: return cache.flush();
             case INVALIDATE: return cache.invalidate(Integer.parseInt(command.substring(2)));
-            case NOOP: return simulationFlags.contains(SimulationFlag.IGNORE_NOOPS) ? 0 : cache.noop();
+            case NOOP: return simulationFlags.contains(SimulationFlag.IGNORE_NOOPS) ? 0 : cache.noop(this.parseNoop(command));
 
-            default: return cache.noop();
+            default: return 0;
         }
     }
 
@@ -175,6 +175,13 @@ public class CacheSimulationService {
     private long updateCommandCounter(CacheCommandType commandType) {
 
         return (commandType == CacheCommandType.READ || commandType == CacheCommandType.WRITE) ? 1 : 0;
+    }
+
+    ///..
+    private long parseNoop(String command) {
+
+        if(command.length() == 1) return 1;
+        return Long.parseLong(command.substring(1));
     }
 
     ///

@@ -216,9 +216,9 @@ public class Cache {
     }
 
     ///..
-    public long noop() {
+    public long noop(long num) {
 
-        return 1;
+        return num;
     }
 
     ///..
