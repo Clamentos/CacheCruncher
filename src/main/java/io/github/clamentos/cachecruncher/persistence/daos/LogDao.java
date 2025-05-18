@@ -45,7 +45,7 @@ public class LogDao extends Dao {
     ///
     private static final String INSERT_SQL = "INSERT INTO log (created_at,thread,logger,message,level) values (?,?,?,?,?)";
 
-    private static final String SELECT_SQL = "SELECT id,created_at,thread,logger,message,level FROM log WHERE created_at > ? AND created_at BETWEEN ? AND ? AND level IN (?, ?, ?, ?, ?) AND thread LIKE ? AND logger LIKE ? AND message LIKE ? LIMIT ?";
+    private static final String SELECT_SQL = "SELECT id,created_at,thread,logger,message,level FROM log WHERE created_at > ? AND created_at BETWEEN ? AND ? AND level IN (?,?,?,?,?) AND thread LIKE ? AND logger LIKE ? AND message LIKE ? LIMIT ?";
 
     private static final String COUNT_SQL = "SELECT level, COUNT(*) FROM log GROUP BY level";
     private static final String DELETE_SQL = "DELETE FROM log WHERE created_at BETWEEN ? and ?";

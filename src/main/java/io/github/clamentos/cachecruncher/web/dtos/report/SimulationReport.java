@@ -15,7 +15,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class SimulationReport<R> {
+public final class SimulationReport<R extends RootReport> {
 
     ///
     private final SimulationStatus status;

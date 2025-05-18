@@ -2,14 +2,12 @@ package io.github.clamentos.cachecruncher.monitoring.status;
 
 ///
 import io.github.clamentos.cachecruncher.utility.Pair;
+import io.github.clamentos.cachecruncher.utility.Triple;
 
 ///.
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
-///..
-import java.util.concurrent.ConcurrentHashMap;
 
 ///..
 import java.util.concurrent.atomic.AtomicInteger;
@@ -18,33 +16,34 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class LatencyDistribution {
 
     ///
-    private final Map<Pair<Integer, Integer>, AtomicInteger> buckets;
+    private final List<Triple<Integer, Integer, AtomicInteger>> buckets;
+
+    ///..
     private final AtomicInteger outliersCounter;
     private final String outliersStartingBoundary;
 
     ///
     public LatencyDistribution(List<Pair<Integer, Integer>> breakpoints, int outliersStartingBoundary) {
 
-        buckets = new ConcurrentHashMap<>();
-        outliersCounter = new AtomicInteger();
-        this.outliersStartingBoundary = Integer.toString(outliersStartingBoundary);
+        buckets = new ArrayList<>(breakpoints.size());
 
         for(Pair<Integer, Integer> breakpoint : breakpoints) {
 
-            buckets.put(breakpoint, new AtomicInteger());
+            buckets.add(new Triple<>(breakpoint.getA(), breakpoint.getB(), new AtomicInteger()));
         }
+
+        outliersCounter = new AtomicInteger();
+        this.outliersStartingBoundary = Integer.toString(outliersStartingBoundary);
     }
 
     ///
     public void update(int latency) {
 
-        for(Map.Entry<Pair<Integer, Integer>, AtomicInteger> bucket : buckets.entrySet()) {
+        for(Triple<Integer, Integer, AtomicInteger> bucket : buckets) {
 
-            Pair<Integer, Integer> range = bucket.getKey();
+            if(bucket.getA().compareTo(latency) >= 0 && bucket.getB().compareTo(latency) <= 0) {
 
-            if(range.getA().compareTo(latency) >= 0 && range.getB().compareTo(latency) <= 0) {
-
-                bucket.getValue().incrementAndGet();
+                bucket.getC().incrementAndGet();
                 return;
             }
         }
@@ -55,14 +54,14 @@ public final class LatencyDistribution {
     ///..
     public List<Map<String, Integer>> getDistribution() {
 
-        List<Map<String, Integer>> distribution = new ArrayList<>();
+        List<Map<String, Integer>> distribution = new ArrayList<>(buckets.size() + 1);
 
-        for(Map.Entry<Pair<Integer, Integer>, AtomicInteger> bucket : buckets.entrySet()) {
+        for(Triple<Integer, Integer, AtomicInteger> bucket : buckets) {
 
             distribution.add(Map.of(
 
-                bucket.getKey().getA().toString() + "-" + bucket.getKey().getB().toString(),
-                bucket.getValue().get()
+                bucket.getA().toString() + "-" + bucket.getB().toString(),
+                bucket.getC().get()
             ));
         }
 

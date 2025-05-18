@@ -16,6 +16,7 @@ public enum ErrorCode {
     VALIDATOR_BAD_FORMAT("Argument ? ?"),
     SERIALIZATION_ERROR("Could not serialize JSON"),
     DESERIALIZATION_ERROR("Could not deserialize JSON"),
+    JSON_TOO_DEEP("JSON is to deep, maximum depth for type ? is ?"),
     UNKNOWN_COMMAND_TYPE("Unknown command type ?"),
     ILLEGAL_COMMAND_TYPE("?"),
 
@@ -34,7 +35,8 @@ public enum ErrorCode {
     NOT_ENOUGH_PRIVILEGES("?"),
     WRONG_PASSWORD("Wrong password"),
 
-    UNCATEGORIZED("Uncategorized");
+    GENERIC("?"),                       // Generic error that can contain any.
+    UNCATEGORIZED("Uncategorized");     // Default fallback.
 
     ///
     private final String message;

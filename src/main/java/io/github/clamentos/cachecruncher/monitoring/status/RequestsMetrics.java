@@ -1,6 +1,10 @@
 package io.github.clamentos.cachecruncher.monitoring.status;
 
 ///
+import io.github.clamentos.cachecruncher.error.ErrorCode;
+import io.github.clamentos.cachecruncher.error.ErrorDetails;
+
+///..
 import io.github.clamentos.cachecruncher.utility.Pair;
 
 ///.
@@ -60,7 +64,6 @@ public final class RequestsMetrics {
 
         direction = new AtomicBoolean();
         currentSecond = new AtomicInteger();
-        breakpoints = new ArrayList<>();
 
         String breakpointsProp = environment.getProperty(
 
@@ -70,10 +73,11 @@ public final class RequestsMetrics {
         );
 
         String[] breakpointsSplits = breakpointsProp.split(",");
+        breakpoints = new ArrayList<>(breakpointsSplits.length);
 
         if(breakpointsSplits.length == 0) {
 
-            throw new IllegalArgumentException("Property \"cache-cruncher.monitoring.status.breakpoints\" must have at least 1 element");
+            throw this.fail("Property \"cache-cruncher.monitoring.status.breakpoints\" must have at least 1 element");
         }
 
         for(String breakpoint : breakpointsSplits) {
@@ -82,7 +86,7 @@ public final class RequestsMetrics {
 
             if(boundaries.length != 2) {
 
-                throw new IllegalArgumentException("Breakpoints must be formatted: \"X-Y\" with Y > X");
+                throw this.fail("Breakpoints must be formatted: \"X-Y\"");
             }
 
             int boundaryStart = Integer.parseInt(boundaries[0]);
@@ -90,7 +94,7 @@ public final class RequestsMetrics {
 
             if(boundaryStart >= boundaryEnd) {
 
-                throw new IllegalArgumentException("Breakpoints must be formatted: \"X-Y\" with Y > X");
+                throw this.fail("Breakpoints must respect: Y > X");
             }
 
             breakpoints.add(new Pair<>(boundaryStart, boundaryEnd));
@@ -133,8 +137,8 @@ public final class RequestsMetrics {
 
         if(currentSecond.get() == rolloverTime) {
 
-            var currentTracker = direction.get() ? latencyTrackerShadow : latencyTracker;
             boolean oldDirection = direction.get();
+            var currentTracker = oldDirection ? latencyTrackerShadow : latencyTracker;
             direction.set(!oldDirection);
             currentSecond.set(0);
 
@@ -172,6 +176,12 @@ public final class RequestsMetrics {
         }
 
         return metrics;
+    }
+
+    ///.
+    private IllegalArgumentException fail(String message) {
+
+        return new IllegalArgumentException(new ErrorDetails(ErrorCode.GENERIC, message));
     }
 
     ///

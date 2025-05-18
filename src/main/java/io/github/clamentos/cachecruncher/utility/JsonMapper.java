@@ -57,9 +57,11 @@ public class JsonMapper {
     ///..
     public <T> T deserialize(String object, TypeReference<T> type) throws IllegalArgumentException {
 
-        if(object == null || type == null) {
+        if(type == null) {
 
-            throw new IllegalArgumentException("Method arguments cannot be null");
+            String message = "Method arguments cannot be null";
+            log.error(message);
+            throw new IllegalArgumentException(new ErrorDetails(ErrorCode.GENERIC, message));
         }
 
         try {

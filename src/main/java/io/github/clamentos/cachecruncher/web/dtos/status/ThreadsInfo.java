@@ -18,6 +18,7 @@ public final class ThreadsInfo {
     private final int platformThreadCount;
     private final int daemonThreadCount;
     private final int peakThreadCount;
+    private final double averageCpuLoad;
 
     ///..
     private final ThreadInfo[] threadDump;

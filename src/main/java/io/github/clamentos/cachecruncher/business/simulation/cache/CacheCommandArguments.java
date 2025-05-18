@@ -1,4 +1,4 @@
-package io.github.clamentos.cachecruncher.business.simulation;
+package io.github.clamentos.cachecruncher.business.simulation.cache;
 
 ///
 import lombok.AllArgsConstructor;

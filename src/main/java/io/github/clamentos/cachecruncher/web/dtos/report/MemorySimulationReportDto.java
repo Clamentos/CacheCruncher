@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 
 ///
-public class MemorySimulationReportDto {
+public sealed class MemorySimulationReportDto permits CacheSimulationReportDto {
 
     ///
     private long readRequests;

@@ -6,8 +6,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 ///.
 import io.github.clamentos.cachecruncher.business.services.CacheTraceService;
 import io.github.clamentos.cachecruncher.business.services.SessionService;
+
 ///..
 import io.github.clamentos.cachecruncher.monitoring.logging.LogLevel;
+
+///..
+import io.github.clamentos.cachecruncher.monitoring.status.validation.LogSearchFilterValidator;
+import io.github.clamentos.cachecruncher.monitoring.status.validation.ResponseInfoSearchFilterValidator;
 
 ///..
 import io.github.clamentos.cachecruncher.persistence.daos.LogDao;
@@ -37,6 +42,7 @@ import io.github.clamentos.cachecruncher.web.dtos.status.ThreadsInfo;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
+import java.lang.management.OperatingSystemMXBean;
 import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadMXBean;
 
@@ -77,6 +83,9 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 ///..
 import org.springframework.stereotype.Service;
+
+///..
+import org.springframework.transaction.annotation.Transactional;
 
 ///..
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -124,6 +133,7 @@ public class ApplicationStatusService {
     private final MemoryMXBean memoryBean;
     private final RuntimeMXBean runtimeBean;
     private final ThreadMXBean threadBean;
+    private final OperatingSystemMXBean operatingSystemBean;
 
     ///..
     private final TypeReference<Map<String, Integer>> mapTypeRef;
@@ -161,6 +171,7 @@ public class ApplicationStatusService {
         memoryBean = ManagementFactory.getMemoryMXBean();
         runtimeBean = ManagementFactory.getRuntimeMXBean();
         threadBean = ManagementFactory.getThreadMXBean();
+        operatingSystemBean = ManagementFactory.getOperatingSystemMXBean();
 
         mapTypeRef = new TypeReference<>(){};
     }
@@ -228,6 +239,7 @@ public class ApplicationStatusService {
                 threadCount - daemonThreadCount,
                 daemonThreadCount,
                 threadBean.getPeakThreadCount(),
+                operatingSystemBean.getSystemLoadAverage(),
                 threadBean.dumpAllThreads(false, false, 0)
             );
         }
@@ -318,12 +330,14 @@ public class ApplicationStatusService {
     }
 
     ///..
+    @Transactional
     public int deleteMetrics(long createdAtStart, long createdAtEnd) throws DataAccessException {
 
         return metricDao.delete(createdAtStart, createdAtEnd);
     }
 
     ///..
+    @Transactional
     public int deleteLogs(long createdAtStart, long createdAtEnd) throws DataAccessException {
 
         return logDao.delete(createdAtStart, createdAtEnd);
@@ -371,7 +385,7 @@ public class ApplicationStatusService {
     }
 
     ///..
-    @Scheduled(fixedRate = 1000, scheduler = "taskScheduler")
+    @Scheduled(fixedRate = 1_000, scheduler = "taskScheduler")
     protected void dump() {
 
         try {
@@ -391,7 +405,7 @@ public class ApplicationStatusService {
 
                             metricEntities.add(new Metric(
 
-                                -1,
+                                -1L,
                                 now,
                                 metricEntry.getKey(),
                                 pathEntry.getKey(),

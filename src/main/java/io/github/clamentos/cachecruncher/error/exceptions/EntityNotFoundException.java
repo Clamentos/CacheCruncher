@@ -9,7 +9,7 @@ public final class EntityNotFoundException extends RuntimeException {
     ///
     public EntityNotFoundException(ErrorDetails errorDetails) {
 
-        super(errorDetails.getErrorCode().getMessage(), errorDetails);
+        super(errorDetails);
     }
 
     ///

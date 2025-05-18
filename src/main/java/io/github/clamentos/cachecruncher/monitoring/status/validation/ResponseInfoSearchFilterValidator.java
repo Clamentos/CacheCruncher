@@ -1,4 +1,4 @@
-package io.github.clamentos.cachecruncher.monitoring.status;
+package io.github.clamentos.cachecruncher.monitoring.status.validation;
 
 ///
 import io.github.clamentos.cachecruncher.utility.BasicValidator;

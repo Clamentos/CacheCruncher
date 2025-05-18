@@ -44,8 +44,8 @@ public class MaintenanceService {
         this.logDao = logDao;
         this.metricDao = metricDao;
 
-        logsRetention = environment.getProperty("cache-cruncher.monitoring.status.logsRetention", Long.class, 604800000L);
-        metricsRetention = environment.getProperty("cache-cruncher.monitoring.status.metricsRetention", Long.class, 604800000L);
+        logsRetention = environment.getProperty("cache-cruncher.monitoring.status.logsRetention", Long.class, 604_800_000L);
+        metricsRetention = environment.getProperty("cache-cruncher.monitoring.status.metricsRetention", Long.class, 604_800_000L);
     }
 
     ///
@@ -54,13 +54,13 @@ public class MaintenanceService {
 
         log.info("Starting maintenance task...");
 
-        ZonedDateTime logsRetentionLimit = ZonedDateTime.now().minusDays(logsRetention);
-        ZonedDateTime metricsRetentionLimit = ZonedDateTime.now().minusDays(metricsRetention);
+        long logsRetentionLimit = ZonedDateTime.now().minusDays(logsRetention).toInstant().toEpochMilli();
+        long metricsRetentionLimit = ZonedDateTime.now().minusDays(metricsRetention).toInstant().toEpochMilli();
 
-        int deletedLogs = logDao.delete(Long.MIN_VALUE, logsRetentionLimit.toInstant().toEpochMilli());
-        int deletedMetrics = metricDao.delete(Long.MIN_VALUE, metricsRetentionLimit.toInstant().toEpochMilli());
+        int deletedLogs = logDao.delete(Long.MIN_VALUE, logsRetentionLimit);
+        int deletedMetrics = metricDao.delete(Long.MIN_VALUE, metricsRetentionLimit);
 
-        log.info("Logs dumping task completed, {} logs deleted, {} metrics deleted", deletedLogs, deletedMetrics);
+        log.info("Maintenance task completed, {} logs deleted, {} metrics deleted", deletedLogs, deletedMetrics);
     }
 
     ///

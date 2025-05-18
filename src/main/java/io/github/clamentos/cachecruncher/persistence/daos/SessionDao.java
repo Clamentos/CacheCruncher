@@ -39,7 +39,7 @@ public class SessionDao extends Dao {
     ///
     private static final String INSERT_SQL = "INSERT INTO session (user_id,expires_at,email,device,id,is_admin) values (?,?,?,?,?,?)";
     private static final String SELECT_SQL = "SELECT user_id,expires_at,email,device,id,is_admin FROM session";
-    private static final String DELETE_BY_ID_SQL = "DELETE FROM session WHERE id = ?";
+    private static final String DELETE_BY_ID_SQL = "DELETE FROM session WHERE id=?";
     private static final String DELETE_ALL_BY_IDS_SQL = "DELETE FROM session WHERE id IN (";
 
     ///

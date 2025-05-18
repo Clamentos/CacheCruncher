@@ -12,7 +12,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class CacheSimulationRootReportDto {
+public final class CacheSimulationRootReportDto implements RootReport {
 
     ///
     private final SimulationStatus status;
@@ -24,13 +24,6 @@ public final class CacheSimulationRootReportDto {
     ///..
     private final double averageMemoryAccessTime;
     private final CacheSimulationReportDto report;
-
-    ///
-    public static CacheSimulationRootReportDto newRejected() {
-
-        long now = System.currentTimeMillis();
-        return new CacheSimulationRootReportDto(SimulationStatus.REJECTED, now, now, -1, null);
-    }
 
     ///
 }

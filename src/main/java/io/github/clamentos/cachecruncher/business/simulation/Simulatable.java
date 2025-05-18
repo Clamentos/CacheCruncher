@@ -1,14 +1,10 @@
 package io.github.clamentos.cachecruncher.business.simulation;
 
 ///
-public enum SimulationStatus {
+public interface Simulatable {
 
     ///
-    OK,
-    NOT_FOUND,
-    REJECTED,
-
-    UCATEGORIZED;
+    long advance(long cycles);
 
     ///
 }

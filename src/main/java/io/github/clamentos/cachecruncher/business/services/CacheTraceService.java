@@ -25,6 +25,7 @@ import io.github.clamentos.cachecruncher.persistence.entities.CacheTrace;
 
 ///..
 import io.github.clamentos.cachecruncher.utility.JsonMapper;
+import io.github.clamentos.cachecruncher.utility.Pair;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.report.CacheSimulationRootReportDto;
@@ -32,7 +33,6 @@ import io.github.clamentos.cachecruncher.web.dtos.report.SimulationReport;
 import io.github.clamentos.cachecruncher.web.dtos.report.SimulationSummaryReport;
 
 ///..
-import io.github.clamentos.cachecruncher.web.dtos.simulation.CacheConfigurationDto;
 import io.github.clamentos.cachecruncher.web.dtos.simulation.CacheSimulationArgumentsDto;
 
 ///..
@@ -48,6 +48,8 @@ import java.util.Map;
 ///..
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 ///..
 import java.util.concurrent.atomic.AtomicLong;
@@ -124,10 +126,13 @@ public class CacheTraceService {
     public void create(CacheTraceDto cacheTraceDto) throws DataAccessException, IllegalArgumentException {
 
         cacheTraceValidator.validateForCreate(cacheTraceDto);
+        long now = System.currentTimeMillis();
 
         CacheTrace cacheTraceEntity = new CacheTrace(
 
-            System.currentTimeMillis(),
+            -1L,
+            now,
+            now,
             cacheTraceDto.getDescription(),
             cacheTraceDto.getName(),
             jsonMapper.serialize(cacheTraceDto.getTrace())
@@ -234,92 +239,76 @@ public class CacheTraceService {
         simulationArgumentsValidator.validate(simulationArgumentsDto);
 
         boolean hasErrors = false;
+        List<Pair<Long, Future<SimulationReport<CacheSimulationRootReportDto>>>> simulations = new ArrayList<>();
         Map<Long, SimulationReport<CacheSimulationRootReportDto>> combinedReport = new HashMap<>();
 
         for(Long traceId : simulationArgumentsDto.getTraceIds()) {
 
-            CacheTrace cacheTraceEntity = null;
-
             try {
 
-                cacheTraceEntity = cacheTraceDao.selectById(traceId);
+                Future<SimulationReport<CacheSimulationRootReportDto>> simulation = cacheSimulationService.simulate(
+
+                    traceId,
+                    simulationArgumentsDto.getCacheConfigurations(),
+                    simulationArgumentsDto.getSimulationFlags()
+                );
+
+                simulations.add(new Pair<>(traceId, simulation));
             }
 
-            catch(DataAccessException exc) {
+            catch(RejectedExecutionException _) {
 
-                log.error("{}: {}", exc.getClass().getSimpleName(), exc.getMessage());
-
-                combinedReport.put(traceId, new SimulationReport<>(SimulationStatus.UCATEGORIZED, null));
                 hasErrors = true;
-
-                continue;
+                rejectedSimulations.incrementAndGet();
+                simulations.add(new Pair<>(traceId, null));
             }
+        }
 
-            if(cacheTraceEntity != null) {
+        for(Pair<Long, Future<SimulationReport<CacheSimulationRootReportDto>>> simulation : simulations) {
 
-                CacheTraceBodyDto trace = jsonMapper.deserialize(cacheTraceEntity.getData(), cacheTraceBodyDtoType);
-                List<Future<CacheSimulationRootReportDto>> simulations = new ArrayList<>();
+            if(simulation.getB() != null) {
 
-                for(CacheConfigurationDto cacheConfiguration : simulationArgumentsDto.getCacheConfigurations()) {
+                try {
 
-                    String cacheConfigurationName = cacheConfiguration.getName();
+                    SimulationReport<CacheSimulationRootReportDto> result = simulation.getB().get(10, TimeUnit.SECONDS);
+                    combinedReport.put(simulation.getA(), simulation.getB().get(10, TimeUnit.SECONDS));
 
-                    try {
+                    if(!result.getStatus().equals(SimulationStatus.OK)) {
 
-                        simulations.add(cacheSimulationService.simulate(
-
-                            simulationArgumentsDto.getRamAccessTime(),
-                            simulationArgumentsDto.getSimulationFlags(),
-                            cacheConfiguration,
-                            trace
-                        ));
-                    }
-
-                    catch(RejectedExecutionException exc) {
-
-                        rejectedSimulations.incrementAndGet();
                         hasErrors = true;
-
-                        this.addReport(
-
-                            combinedReport,
-                            CacheSimulationRootReportDto.newRejected(),
-                            cacheConfigurationName,
-                            SimulationStatus.NESTED_ERRORS,
-                            traceId
-                        );
                     }
 
-                    for(Future<CacheSimulationRootReportDto> simulation : simulations) {
+                    else {
 
-                        try {
-
-                            CacheSimulationRootReportDto simulationResult = simulation.get();
-                            completedSimulations.incrementAndGet();
-                            this.addReport(combinedReport, simulationResult, cacheConfigurationName, SimulationStatus.OK, traceId);
-                        }
-
-                        catch(InterruptedException exc) {
-
-                            Thread.currentThread().interrupt();
-                            this.handleSimulationException(combinedReport, cacheConfigurationName, traceId);
-                            hasErrors = true;
-                        }
-    
-                        catch(Exception exc) {
-    
-                            log.error("Could not simulate", exc);
-                            this.handleSimulationException(combinedReport, cacheConfigurationName, traceId);
-                            hasErrors = true;
-                        }
+                        completedSimulations.incrementAndGet();
                     }
+                }
+
+                catch(InterruptedException _) {
+
+                    hasErrors = true;
+                    Thread.currentThread().interrupt();
+                    combinedReport.put(simulation.getA(), new SimulationReport<>(SimulationStatus.UCATEGORIZED, null));
+                }
+
+                catch(TimeoutException _) {
+
+                    hasErrors = true;
+                    combinedReport.put(simulation.getA(), new SimulationReport<>(SimulationStatus.REJECTED, null));
+                }
+
+                catch(Exception exc) {
+
+                    log.error("Could not simulate", exc);
+
+                    hasErrors = true;
+                    combinedReport.put(simulation.getA(), new SimulationReport<>(SimulationStatus.UCATEGORIZED, null));
                 }
             }
 
             else {
 
-                combinedReport.put(traceId, new SimulationReport<>(SimulationStatus.NOT_FOUND, null));
-                hasErrors = true;
+                combinedReport.put(simulation.getA(), new SimulationReport<>(SimulationStatus.REJECTED, null));
             }
         }
 
@@ -342,42 +331,6 @@ public class CacheTraceService {
     private EntityNotFoundException createNotFoundException(long traceId) {
 
         return new EntityNotFoundException(new ErrorDetails(ErrorCode.CACHE_TRACE_NOT_FOUND, traceId));
-    }
-
-    ///..
-    private void addReport(
-
-        Map<Long, SimulationReport<CacheSimulationRootReportDto>> combinedReport,
-        CacheSimulationRootReportDto newSummary,
-        String cacheConfigurationName,
-        SimulationStatus status,
-        Long traceId
-    ) {
-
-        SimulationReport<CacheSimulationRootReportDto> traceReport = combinedReport.get(traceId);
-
-        if(traceReport == null) {
-
-            Map<String, CacheSimulationRootReportDto> reportMap = new HashMap<>();
-
-            reportMap.put(cacheConfigurationName, newSummary);
-            combinedReport.put(traceId, new SimulationReport<>(status, reportMap));
-        }
-
-        else {
-
-            traceReport.getReport().put(cacheConfigurationName, newSummary);
-        }
-    }
-
-    ///..
-    private void handleSimulationException(
-
-        Map<Long, SimulationReport<CacheSimulationRootReportDto>> combinedReport,
-        String cacheConfigurationName,
-        Long traceId
-    ) {
-        this.addReport(combinedReport, null, cacheConfigurationName, SimulationStatus.UCATEGORIZED, traceId);
     }
 
     ///

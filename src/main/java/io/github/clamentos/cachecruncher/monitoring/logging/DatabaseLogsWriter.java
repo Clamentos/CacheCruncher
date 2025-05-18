@@ -87,10 +87,10 @@ public class DatabaseLogsWriter {
         try {
 
             // Wait for logback to spawn a new file if the previous log triggered a rollover.
-            Thread.sleep(1500L);
+            Thread.sleep(1_500L);
         }
 
-        catch(InterruptedException exc) {
+        catch(InterruptedException _) {
 
             Thread.currentThread().interrupt();
             log.warn("Interrupted, ignoring...");
@@ -106,7 +106,7 @@ public class DatabaseLogsWriter {
                 .list(Paths.get(logsPath))
                 .filter(path -> !Files.isDirectory(path))
                 .sorted((first, second) -> second.getFileName().compareTo(first.getFileName()))
-                .skip(1)
+                .skip(1L)
                 .toList()
             ;
 

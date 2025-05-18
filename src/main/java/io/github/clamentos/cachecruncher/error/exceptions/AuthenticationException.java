@@ -9,7 +9,7 @@ public class AuthenticationException extends SecurityException {
     ///
     public AuthenticationException(ErrorDetails errorDetails) {
 
-        super(errorDetails.getErrorCode().getMessage(), errorDetails);
+        super(errorDetails);
     }
 
     ///

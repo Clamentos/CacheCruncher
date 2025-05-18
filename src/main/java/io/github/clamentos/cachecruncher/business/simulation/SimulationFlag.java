@@ -5,7 +5,7 @@ public enum SimulationFlag {
 
     ///
     IGNORE_PREFETCHES,
-    IGNORE_NOOPS,
+    IGNORE_NOOPS;
 
     ///
 }

@@ -49,7 +49,7 @@ public class CacheSimulationController {
     ) throws IllegalArgumentException {
 
         SimulationSummaryReport<CacheSimulationRootReportDto> result = cacheTraceService.simulate(cacheSimulationArgumentsDto);
-        return ResponseEntity.status(result.isFailed() ? HttpStatus.UNPROCESSABLE_ENTITY : HttpStatus.OK).body(result);
+        return ResponseEntity.status(result.isFailed() ? HttpStatus.PARTIAL_CONTENT : HttpStatus.OK).body(result);
     }
 
     ///

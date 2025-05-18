@@ -19,7 +19,7 @@ public final class ErrorDetails extends Throwable {
     ///
     public ErrorDetails(ErrorCode errorCode, Serializable... arguments) {
 
-        super();
+        super(null, null, true, false);
 
         this.errorCode = errorCode;
         this.arguments = arguments;

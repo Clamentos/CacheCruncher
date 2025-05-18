@@ -1,25 +1,46 @@
 package io.github.clamentos.cachecruncher.business.services;
 
 ///
-import io.github.clamentos.cachecruncher.business.simulation.CacheCommandArguments;
-import io.github.clamentos.cachecruncher.business.simulation.CacheCommandType;
+import com.fasterxml.jackson.core.type.TypeReference;
+
+///.
 import io.github.clamentos.cachecruncher.business.simulation.SimulationFlag;
 import io.github.clamentos.cachecruncher.business.simulation.SimulationStatus;
 
 ///..
 import io.github.clamentos.cachecruncher.business.simulation.cache.Cache;
+import io.github.clamentos.cachecruncher.business.simulation.cache.CacheCommandArguments;
+import io.github.clamentos.cachecruncher.business.simulation.cache.CacheCommandType;
+import io.github.clamentos.cachecruncher.business.simulation.cache.Memory;
+import io.github.clamentos.cachecruncher.business.simulation.cache.SystemMemory;
+
+///..
+import io.github.clamentos.cachecruncher.business.simulation.event.EventManager;
+
+///..
+import io.github.clamentos.cachecruncher.persistence.daos.CacheTraceDao;
+
+///..
+import io.github.clamentos.cachecruncher.persistence.entities.CacheTrace;
+
+///..
+import io.github.clamentos.cachecruncher.utility.JsonMapper;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.report.CacheSimulationRootReportDto;
+import io.github.clamentos.cachecruncher.web.dtos.report.SimulationReport;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.simulation.CacheConfigurationDto;
+import io.github.clamentos.cachecruncher.web.dtos.simulation.MemoryConfigurationDto;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.trace.CacheTraceBodyDto;
 
 ///.
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 ///..
@@ -28,6 +49,15 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 
 ///.
+import lombok.extern.slf4j.Slf4j;
+
+///.
+import org.springframework.beans.factory.annotation.Autowired;
+
+///..
+import org.springframework.dao.DataAccessException;
+
+///..
 import org.springframework.scheduling.annotation.Async;
 
 ///..
@@ -35,89 +65,139 @@ import org.springframework.stereotype.Service;
 
 ///
 @Service
+@Slf4j
 
 ///
 public class CacheSimulationService {
 
     ///
-    @Async(value = "simulationsExecutor")
-    public Future<CacheSimulationRootReportDto> simulate(
+    private final CacheTraceDao cacheTraceDao;
+    private final JsonMapper jsonMapper;
 
-        int ramAccessTime,
-        Set<SimulationFlag> simulationFlags,
-        CacheConfigurationDto cacheConfiguration,
-        CacheTraceBodyDto trace
+    ///..
+    private final TypeReference<CacheTraceBodyDto> cacheTraceBodyDtoType;
+
+    ///
+    @Autowired
+    public CacheSimulationService(CacheTraceDao cacheTraceDao, JsonMapper jsonMapper) {
+
+        this.cacheTraceDao = cacheTraceDao;
+        this.jsonMapper = jsonMapper;
+
+        cacheTraceBodyDtoType = new TypeReference<>(){};
+    }
+
+    ///
+    @Async(value = "simulationsExecutor")
+    public Future<SimulationReport<CacheSimulationRootReportDto>> simulate(
+
+        long traceId,
+        Set<CacheConfigurationDto> cacheConfigurations,
+        Set<SimulationFlag> simulationFlags
 
     ) throws RejectedExecutionException {
 
-        long cycleCounter = 0;
-        long commandCounter = 0;
+        CacheTrace cacheTrace;
         long beginTimestamp = System.currentTimeMillis();
-        Cache cache = this.buildHierarchy(cacheConfiguration, ramAccessTime);
 
-        for(String command : trace.getBody()) {
+        try {
 
-            CacheCommandType commandType = CacheCommandType.determineType(command);
+            cacheTrace = cacheTraceDao.selectById(traceId);
+        }
 
-            if(commandType != CacheCommandType.REPEAT) {
+        catch(DataAccessException exc) {
 
-                cycleCounter += this.doSimpleCommand(commandType, command, cache, simulationFlags);
-                commandCounter += this.updateCommandCounter(commandType);
-            }
+            log.error("{}: {}", exc.getClass().getSimpleName(), exc.getMessage());
+            return CompletableFuture.completedFuture(new SimulationReport<>(SimulationStatus.UCATEGORIZED, null));
+        }
 
-            else {
+        Map<String, CacheSimulationRootReportDto> rootReports = new HashMap<>();
 
-                String[] commandComponents = command.split("#");
-                int repetitions = Integer.parseInt(commandComponents[1]);
-                List<String> section = trace.getSections().get(commandComponents[2]);
+        if(cacheTrace != null) {
 
-                for(int i = 0; i < repetitions; i++) {
+            CacheTraceBodyDto trace = jsonMapper.deserialize(cacheTrace.getData(), cacheTraceBodyDtoType);
 
-                    CacheCommandType sectionCommandType = CacheCommandType.determineType(command);
+            for(CacheConfigurationDto cacheConfiguration : cacheConfigurations) {
 
-                    for(String sectionCommand : section) {
+                long cycleCounter = 0;
+                long commandCounter = 0;
+                Cache cache = (Cache)this.buildHierarchy(cacheConfiguration, new EventManager());
 
-                        cycleCounter += this.doSimpleCommand(sectionCommandType, sectionCommand, cache, simulationFlags);
+                for(String command : trace.getBody()) {
+
+                    CacheCommandType commandType = CacheCommandType.determineType(command);
+
+                    if(commandType != CacheCommandType.REPEAT) {
+
+                        cycleCounter += this.doSimpleCommand(commandType, command, cache, simulationFlags);
                         commandCounter += this.updateCommandCounter(commandType);
                     }
+
+                    else {
+
+                        String[] commandComponents = command.split("#");
+                        int repetitions = Integer.parseInt(commandComponents[1]);
+                        List<String> section = trace.getSections().get(commandComponents[2]);
+
+                        for(int i = 0; i < repetitions; i++) {
+
+                            CacheCommandType sectionCommandType = CacheCommandType.determineType(command);
+
+                            for(String sectionCommand : section) {
+
+                                cycleCounter += this.doSimpleCommand(sectionCommandType, sectionCommand, cache, simulationFlags);
+                                commandCounter += this.updateCommandCounter(commandType);
+                            }
+                        }
+                    }
                 }
+
+                double averageMemoryAccessTime = commandCounter > 0 ? (double)cycleCounter / (double)commandCounter : -1;
+
+                rootReports.put(cacheConfiguration.getName(), new CacheSimulationRootReportDto(
+
+                    SimulationStatus.OK,
+                    beginTimestamp,
+                    System.currentTimeMillis(),
+                    averageMemoryAccessTime,
+                    cache.getMemorySimulationReportDto()
+                ));
             }
         }
 
-        double averageMemoryAccessTime = commandCounter > 0 ? (double)cycleCounter / (double)commandCounter : -1;
+        else {
 
-        CacheSimulationRootReportDto summary = new CacheSimulationRootReportDto(
-
-            SimulationStatus.OK,
-            beginTimestamp,
-            System.currentTimeMillis(),
-            averageMemoryAccessTime,
-            cache.getSimulationReportDto()
-        );
-
-        return CompletableFuture.completedFuture(summary);
-    }
-
-    ///.
-    private Cache buildHierarchy(CacheConfigurationDto cacheConfiguration, int ramAccessTime) {
-
-        Cache nextLevelCache = null;
-
-        if(cacheConfiguration.getNextLevelConfiguration() != null) {
-
-            nextLevelCache = this.buildHierarchy(cacheConfiguration.getNextLevelConfiguration(), ramAccessTime);
+            return CompletableFuture.completedFuture(new SimulationReport<>(SimulationStatus.NOT_FOUND, null));
         }
 
-        return new Cache(
+        return CompletableFuture.completedFuture(new SimulationReport<>(SimulationStatus.OK, rootReports));
+    } 
 
-            ramAccessTime,
-            cacheConfiguration.getAccessTime(),
-            cacheConfiguration.getNumSetsExp(),
-            cacheConfiguration.getLineSizeExp(),
-            cacheConfiguration.getAssociativity(),
-            cacheConfiguration.getReplacementPolicyType(),
-            nextLevelCache
-        );
+    ///.
+    private Memory buildHierarchy(MemoryConfigurationDto memoryConfiguration, EventManager eventManager) {
+
+        if(memoryConfiguration instanceof CacheConfigurationDto cacheConfiguration) {
+
+            return new Cache(
+
+                cacheConfiguration.getAccessTime(),
+                cacheConfiguration.getNumSetsExp(),
+                cacheConfiguration.getLineSizeExp(),
+                cacheConfiguration.getAssociativity(),
+                cacheConfiguration.getReplacementPolicyType(),
+                this.buildHierarchy(cacheConfiguration.getNextLevelConfiguration(), eventManager),
+                eventManager
+            ); 
+        }
+
+        else {
+
+            return new SystemMemory(
+
+                memoryConfiguration.getAccessTime(),
+                eventManager
+            );
+        }
     }
 
     ///..

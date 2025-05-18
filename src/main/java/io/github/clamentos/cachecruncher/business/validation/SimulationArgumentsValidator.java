@@ -9,9 +9,10 @@ import io.github.clamentos.cachecruncher.utility.BasicValidator;
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.simulation.CacheConfigurationDto;
 import io.github.clamentos.cachecruncher.web.dtos.simulation.CacheSimulationArgumentsDto;
+import io.github.clamentos.cachecruncher.web.dtos.simulation.MemoryConfigurationDto;
 
 ///.
-import java.util.Collection;
+import java.util.Set;
 
 ///.
 import org.springframework.stereotype.Service;
@@ -30,18 +31,21 @@ public class SimulationArgumentsValidator extends BasicValidator {
 
         super.requireNotNull(simulationArgumentsDto, "DTO");
 
-        super.requireNotNull(simulationArgumentsDto.getRamAccessTime(), "ramAccessTime");
-        super.requireNotNullAll(simulationArgumentsDto.getTraceIds(), "traceIds");
+        Set<Long> traceIds = simulationArgumentsDto.getTraceIds();
+        super.requireNotNullAll(traceIds, "traceIds");
+        super.requireBetween(traceIds.size(), 1, 8, "traceIds");
+
         super.requireNotNullAll(simulationArgumentsDto.getSimulationFlags(), "simulationFlags");
 
         this.validateConfigurations(simulationArgumentsDto.getCacheConfigurations());
     }
 
     ///..
-    private void validateConfigurations(Collection<CacheConfigurationDto> cacheConfigurations) throws IllegalArgumentException {
+    private void validateConfigurations(Set<CacheConfigurationDto> cacheConfigurations) throws IllegalArgumentException {
 
         int i = 0;
         super.requireNotEmpty(cacheConfigurations, "cacheConfigurations");
+        super.requireBetween(cacheConfigurations.size(), 1, 8, "cacheConfigurations");
 
         for(CacheConfigurationDto cacheConfiguration : cacheConfigurations) {
 
@@ -51,47 +55,56 @@ public class SimulationArgumentsValidator extends BasicValidator {
     }
 
     ///..
-    private void validateConfiguration(CacheConfigurationDto cacheConfiguration, String prefix) throws IllegalArgumentException {
+    private void validateConfiguration(MemoryConfigurationDto memoryConfiguration, String prefix) throws IllegalArgumentException {
 
-        super.requireNotNull(cacheConfiguration, prefix);
-        super.requireNotBlank(cacheConfiguration.getName(), prefix + ".name");
-        super.requireBetween(cacheConfiguration.getAccessTime(), 0, Integer.MAX_VALUE, prefix + ".accessTime");
-        super.requireBetween(cacheConfiguration.getNumSetsExp(), 0, 30, prefix + ".numSetsExp");
-        super.requireBetween(cacheConfiguration.getLineSizeExp(), 0, 63, prefix + ".lineSizeExp");
+        super.requireNotNull(memoryConfiguration, prefix);
 
-        Integer associativity = cacheConfiguration.getAssociativity();
-        ReplacementPolicyType replacementPolicyType = cacheConfiguration.getReplacementPolicyType();
-        super.requireBetween(associativity, 1, Integer.MAX_VALUE, prefix + ".associativity");
+        if(memoryConfiguration instanceof CacheConfigurationDto cacheConfiguration) {
 
-        if(associativity > 1) {
+            super.requireNotBlank(cacheConfiguration.getName(), prefix + ".name");
+            super.requireBetween(cacheConfiguration.getAccessTime(), 0L, Long.MAX_VALUE, prefix + ".accessTime");
+            super.requireBetween(cacheConfiguration.getNumSetsExp(), 0, 16, prefix + ".numSetsExp");
+            super.requireBetween(cacheConfiguration.getLineSizeExp(), 0, 63, prefix + ".lineSizeExp");
 
-            super.requireNotNull(replacementPolicyType, prefix + REPLACEMENT_POLICY_TYPE_FIELD);
+            Integer associativity = cacheConfiguration.getAssociativity();
+            ReplacementPolicyType replacementPolicyType = cacheConfiguration.getReplacementPolicyType();
+            super.requireBetween(associativity, 1, 65536, prefix + ".associativity");
 
-            if(replacementPolicyType == ReplacementPolicyType.NOOP) {
+            if(associativity > 1) {
 
-                throw super.fail(
+                super.requireNotNull(replacementPolicyType, prefix + REPLACEMENT_POLICY_TYPE_FIELD);
 
-                    "SimulationArgumentsValidator.validateConfiguration -> Replacement policy type cannot be NOOP",
-                    prefix + REPLACEMENT_POLICY_TYPE_FIELD
-                );
+                if(replacementPolicyType == ReplacementPolicyType.NOOP) {
+
+                    throw super.fail(
+
+                        "SimulationArgumentsValidator.validateConfiguration -> Replacement policy type cannot be NOOP",
+                        prefix + REPLACEMENT_POLICY_TYPE_FIELD
+                    );
+                }
+            }
+
+            else {
+
+                if(replacementPolicyType != null && replacementPolicyType != ReplacementPolicyType.NOOP) {
+
+                    throw super.fail(
+
+                        "SimulationArgumentsValidator.validateConfiguration -> Replacement policy must be NOOP",
+                        prefix + REPLACEMENT_POLICY_TYPE_FIELD
+                    );
+                }
+            }
+
+            if(cacheConfiguration.getNextLevelConfiguration() != null) {
+
+                this.validateConfiguration(cacheConfiguration.getNextLevelConfiguration(), prefix + ".nextLevelConfiguration");
             }
         }
 
         else {
 
-            if(replacementPolicyType != null && replacementPolicyType != ReplacementPolicyType.NOOP) {
-
-                throw super.fail(
-
-                    "SimulationArgumentsValidator.validateConfiguration -> Replacement policy must be NOOP",
-                    prefix + REPLACEMENT_POLICY_TYPE_FIELD
-                );
-            }
-        }
-
-        if(cacheConfiguration.getNextLevelConfiguration() != null) {
-
-            this.validateConfiguration(cacheConfiguration, prefix + ".nextLevelConfiguration");
+            super.requireBetween(memoryConfiguration.getAccessTime(), 0L, Long.MAX_VALUE, prefix + ".accessTime");
         }
     }
 

@@ -16,6 +16,11 @@ public final class CacheSimulationReportDto extends MemorySimulationReportDto {
     private long writeMisses;
 
     ///..
+    private long compulsoryMisses;
+    private long conflictMisses;
+    private long capacityMisses;
+
+    ///..
     private MemorySimulationReportDto nextLevelReport;
 
     ///

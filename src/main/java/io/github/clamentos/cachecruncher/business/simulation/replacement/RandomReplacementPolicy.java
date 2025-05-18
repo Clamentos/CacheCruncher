@@ -13,20 +13,20 @@ public final class RandomReplacementPolicy implements ReplacementPolicy {
     private final RandomGenerator rng;
 
     ///..
-    private final int associativity;
+    private final int rngUpperBound;
 
     ///
     public RandomReplacementPolicy(int associativity) {
 
         rng = new Random();
-        this.associativity = associativity;
+        this.rngUpperBound = associativity - 1;
     }
 
     ///
     @Override
     public int getVictim(int index) {
 
-        return rng.nextInt(0, associativity - 1);
+        return rng.nextInt(0, rngUpperBound);
     }
 
     ///..

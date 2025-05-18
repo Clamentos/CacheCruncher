@@ -7,6 +7,9 @@ public enum ReplacementPolicyType {
     NOOP,
     RANDOM,
     LRU;
+    // PLRU
+    // NMRU
+    // FIFO
 
     ///
 }

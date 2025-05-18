@@ -1,16 +1,7 @@
 package io.github.clamentos.cachecruncher.configuration;
 
 ///
-import io.github.clamentos.cachecruncher.business.services.SessionService;
-
-///..
 import io.github.clamentos.cachecruncher.web.RequestInterceptor;
-
-///.
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 
 ///.
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,61 +38,20 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class AppConfiguration implements WebMvcConfigurer {
 
     ///
-    private final SessionService sessionService;
-
-    ///..
-    private final Set<String> authenticationExcludedPaths;
-    private final Map<String, Boolean> authorizationMappings;
+    private final RequestInterceptor requestInterceptor;
 
     ///
     @Autowired
-    public AppConfiguration(SessionService sessionService) {
+    public AppConfiguration(RequestInterceptor requestInterceptor) {
 
-        this.sessionService = sessionService;
-
-        authenticationExcludedPaths = new HashSet<>();
-
-        authenticationExcludedPaths.add("POST/cache-cruncher/user/register");
-        authenticationExcludedPaths.add("POST/cache-cruncher/user/login");
-
-        authorizationMappings = new HashMap<>();
-
-        authorizationMappings.put("DELETE/cache-cruncher/user/logout", false);
-        authorizationMappings.put("DELETE/cache-cruncher/user/logout-all", false);
-        authorizationMappings.put("GET/cache-cruncher/user", true);
-        authorizationMappings.put("PATCH/cache-cruncher/user", true);
-        authorizationMappings.put("DELETE/cache-cruncher/user", false);
-
-        authorizationMappings.put("GET/cache-cruncher/status/metrics", true);
-        authorizationMappings.put("GET/cache-cruncher/status/metrics/history", true);
-        authorizationMappings.put("GET/cache-cruncher/status/logs", true);
-        authorizationMappings.put("GET/cache-cruncher/status/logs/count", true);
-        authorizationMappings.put("DELETE/cache-cruncher/status/metrics/history", true);
-        authorizationMappings.put("DELETE/cache-cruncher/status/logs", true);
-
-        authorizationMappings.put("GET/cache-cruncher/simulation", false);
-
-        authorizationMappings.put("POST/cache-cruncher/trace", false);
-        authorizationMappings.put("GET/cache-cruncher/trace", false);
-        authorizationMappings.put("GET/cache-cruncher/trace/search", false);
-        authorizationMappings.put("PATCH/cache-cruncher/trace", true);
-        authorizationMappings.put("DELETE/cache-cruncher/trace", true);
+        this.requestInterceptor = requestInterceptor;
     }
 
     ///
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
 
-		registry
-
-            .addInterceptor(new RequestInterceptor(
-
-                sessionService,
-                authenticationExcludedPaths,
-                authorizationMappings
-            ))
-            .addPathPatterns("/**")
-        ;
+		registry.addInterceptor(requestInterceptor).addPathPatterns("/**");
 	}
 
     ///
@@ -124,7 +74,7 @@ public class AppConfiguration implements WebMvcConfigurer {
 
         executor.setCorePoolSize(environment.getProperty("cache-cruncher.simulation.executorPool.minThreads", Integer.class, 4));
         executor.setMaxPoolSize(environment.getProperty("cache-cruncher.simulation.executorPool.maxThreads", Integer.class, 8));
-        executor.setQueueCapacity(environment.getProperty("cache-cruncher.simulation.executorPool.maxQueueSize", Integer.class, 1024));
+        executor.setQueueCapacity(environment.getProperty("cache-cruncher.simulation.executorPool.maxQueueSize", Integer.class, 1_024));
         executor.setThreadNamePrefix("CacheCruncherSimulator-");
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setVirtualThreads(false);

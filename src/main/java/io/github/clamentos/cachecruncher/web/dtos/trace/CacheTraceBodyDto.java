@@ -2,7 +2,6 @@ package io.github.clamentos.cachecruncher.web.dtos.trace;
 
 ///
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 ///.
@@ -14,7 +13,6 @@ import lombok.Getter;
 
 ///
 @Getter
-@JsonIgnoreProperties(ignoreUnknown = false)
 
 ///
 public final class CacheTraceBodyDto {

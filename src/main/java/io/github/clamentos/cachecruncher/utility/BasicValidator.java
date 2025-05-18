@@ -64,7 +64,7 @@ public abstract class BasicValidator {
     }
 
     ///..
-    public void requireBetween(Integer val, int low, int high, String name) throws IllegalArgumentException {
+    public <T extends Comparable<T>> void requireBetween(T val, T low, T high, String name) throws IllegalArgumentException {
 
         if(val == null || val.compareTo(low) < 0 || val.compareTo(high) > 0) {
 

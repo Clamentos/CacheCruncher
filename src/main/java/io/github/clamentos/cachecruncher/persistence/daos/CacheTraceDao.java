@@ -37,12 +37,11 @@ public class CacheTraceDao extends Dao {
 
     ///
     private static final String INSERT_SQL = "INSERT INTO cache_trace (created_at,updated_at,description,name,data) VALUES (?,?,?,?,?)";
-    private static final String SELECT_BY_ID_SQL = "SELECT id,created_at,updated_at,description,name,data FROM cache_trace WHERE id = ?";
+    private static final String SELECT_BY_ID_SQL = "SELECT id,created_at,updated_at,description,name,data FROM cache_trace WHERE id=?";
 
     private static final String SELECT_BY_FILTER_SQL = "SELECT id,created_at,updated_at,description,name FROM cache_trace WHERE name like ? AND created_at BETWEEN ? AND ? AND updated_at BETWEEN ? AND ?";
 
-    private static final String UPDATE_SQL = "UPDATE cache_trace SET updated_at = ?, description = ?, name = ?, data = ? WHERE id = ?";
-    private static final String DELETE_SQL = "DELETE FROM cache_trace WHERE id = ?";
+    private static final String UPDATE_SQL = "UPDATE cache_trace SET updated_at=?, description=?, name=?, data=? WHERE id=?";
 
     ///
     @Autowired
@@ -122,11 +121,7 @@ public class CacheTraceDao extends Dao {
     @Transactional
     public int delete(long id) throws DataAccessException {
 
-        return super.getJdbcTemplate().update(
-
-            DELETE_SQL,
-            preparedStatement -> preparedStatement.setLong(1, id)
-        );
+        return super.deleteWhereIdEquals("cache_trace", id);
     }
 
     ///.

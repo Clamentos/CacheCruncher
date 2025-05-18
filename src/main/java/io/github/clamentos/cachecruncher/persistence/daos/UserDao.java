@@ -42,12 +42,11 @@ public class UserDao extends Dao {
     private static final String EXISTS_SQL = "SELECT count(*) > 0 FROM user WHERE email = ?";
     private static final String SELECT_PRIVILEGE_SQL = "SELECT is_admin FROM user WHERE id = ?";
 
-    private static final String SELECT_BY_USERNAME_SQL = "SELECT id,locked_until,created_at,email,password,failed_accesses,is_admin FROM user WHERE email = ?";
+    private static final String SELECT_BY_USERNAME_SQL = "SELECT id,locked_until,created_at,email,password,failed_accesses,is_admin FROM user WHERE email=?";
 
     private static final String SELECT_ALL_SQL = "SELECT id,locked_until,created_at,email,failed_accesses,is_admin FROM user";
-    private static final String UPDATE_SQL = "UPDATE user SET locked_until = ?, failed_accesses = ? WHERE id = ?";
-    private static final String UPDATE_PRIVILEGE_SQL = "UPDATE user SET is_admin = ? WHERE id = ?";
-    private static final String DELETE_SQL = "DELETE FROM user WHERE id = ?";
+    private static final String UPDATE_SQL = "UPDATE user SET locked_until=?, failed_accesses=? WHERE id=?";
+    private static final String UPDATE_PRIVILEGE_SQL = "UPDATE user SET is_admin=? WHERE id=?";
 
     ///
     @Autowired
@@ -146,9 +145,9 @@ public class UserDao extends Dao {
 
     ///..
     @Transactional
-    public void delete(long id) throws DataAccessException {
+    public int delete(long id) throws DataAccessException {
 
-        super.getJdbcTemplate().update(DELETE_SQL, preparedStatement -> preparedStatement.setLong(1, id));
+        return super.deleteWhereIdEquals("user", id);
     }
 
     ///.

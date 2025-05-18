@@ -33,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 ///
 @RestController
-@RequestMapping(path = "cache-cruncher/trace")
+@RequestMapping(path = "cache-cruncher/cache-trace")
 
 ///
 public class CacheTraceController {
@@ -58,9 +58,9 @@ public class CacheTraceController {
 
     ///..
     @GetMapping(produces = "application/json")
-    public ResponseEntity<CacheTraceDto> getById(@RequestParam long id) throws DataAccessException, EntityNotFoundException {
+    public ResponseEntity<CacheTraceDto> getById(@RequestParam long traceId) throws DataAccessException, EntityNotFoundException {
 
-        return ResponseEntity.ok(cacheTraceService.getById(id));
+        return ResponseEntity.ok(cacheTraceService.getById(traceId));
     }
 
     ///..
@@ -96,9 +96,9 @@ public class CacheTraceController {
 
     ///..
     @DeleteMapping
-    public ResponseEntity<Void> deleteById(@RequestParam long id) throws DataAccessException, EntityNotFoundException {
+    public ResponseEntity<Void> deleteById(@RequestParam long traceId) throws DataAccessException, EntityNotFoundException {
 
-        cacheTraceService.delete(id);
+        cacheTraceService.delete(traceId);
         return ResponseEntity.ok().build();
     }
 

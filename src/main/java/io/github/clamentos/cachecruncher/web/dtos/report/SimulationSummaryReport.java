@@ -12,7 +12,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class SimulationSummaryReport<R> {
+public final class SimulationSummaryReport<R extends RootReport> {
 
     ///
     private final boolean failed;

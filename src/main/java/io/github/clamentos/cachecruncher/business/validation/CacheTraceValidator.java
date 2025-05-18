@@ -1,7 +1,7 @@
 package io.github.clamentos.cachecruncher.business.validation;
 
 ///
-import io.github.clamentos.cachecruncher.business.simulation.CacheCommandType;
+import io.github.clamentos.cachecruncher.business.simulation.cache.CacheCommandType;
 
 ///..
 import io.github.clamentos.cachecruncher.error.ErrorCode;
@@ -55,7 +55,7 @@ public class CacheTraceValidator extends BasicValidator {
         CacheTraceBodyDto trace = cacheTraceDto.getTrace();
 
         super.requireNotNull(trace, "trace");
-        this.validateData(trace);
+        this.validateTraceBody(trace);
     }
 
     ///..
@@ -70,7 +70,7 @@ public class CacheTraceValidator extends BasicValidator {
 
         if(name != null) super.requireNotBlank(name, "name");
         if(description != null) super.requireNotBlank(description, "description");
-        if(trace != null) this.validateData(trace);
+        if(trace != null) this.validateTraceBody(trace);
     }
 
     ///.
@@ -83,7 +83,7 @@ public class CacheTraceValidator extends BasicValidator {
     }
 
     ///..
-    private void validateData(CacheTraceBodyDto trace) throws IllegalArgumentException {
+    private void validateTraceBody(CacheTraceBodyDto trace) throws IllegalArgumentException {
 
         Map<String, List<String>> sections = trace.getSections();
         super.requireNotNull(sections, "trace.sections");

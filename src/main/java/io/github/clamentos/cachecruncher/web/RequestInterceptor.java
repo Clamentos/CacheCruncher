@@ -19,11 +19,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 ///.
-import java.util.Map;
-import java.util.Set;
-
-///.
 import org.springframework.beans.factory.annotation.Autowired;
+
+///..
+import org.springframework.core.env.Environment;
 
 ///..
 import org.springframework.stereotype.Component;
@@ -41,27 +40,28 @@ public class RequestInterceptor implements HandlerInterceptor {
     ///
     private static final String ATTRIBUTE_NAME = "session";
     private static final int COOKIE_PREFIX_LENGTH = 16;
-    private static final int COOKIE_VALUE_LENGTH = 44;
+    private static final int COOKIE_LENGTH = 60;
 
-    ///..
+    ///.
     private final SessionService sessionService;
+    private final AuthMappings authMappings;
 
     ///..
-    private final Set<String> authenticationExcludedPaths;
-    private final Map<String, Boolean> authorizationMappings;
+    private final String gatewaySecret;
+    private final boolean bypass;
+    private final boolean checkSecret;
 
     ///
     @Autowired
-    public RequestInterceptor(
-
-        SessionService sessionService,
-        Set<String> authenticationExcludedPaths,
-        Map<String, Boolean> authorizationMappings
-    ) {
+    public RequestInterceptor(SessionService sessionService, AuthMappings authMappings, Environment environment) {
 
         this.sessionService = sessionService;
-        this.authenticationExcludedPaths = authenticationExcludedPaths;
-        this.authorizationMappings = authorizationMappings;
+        this.authMappings = authMappings;
+
+        gatewaySecret = environment.getProperty("cache-cruncher.gateway.secret", String.class);
+        bypass = environment.getProperty("cache-cruncher.auth.bypass", Boolean.class, false);
+
+        checkSecret = gatewaySecret != null && !gatewaySecret.isEmpty();
     }
 
     ///
@@ -69,41 +69,56 @@ public class RequestInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
     throws AuthenticationException, AuthorizationException {
 
-        String key = request.getMethod() + request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
-        String header = request.getHeader("Cookie");
+        if(!bypass) {
 
-        if(header != null && header.length() >= (COOKIE_PREFIX_LENGTH + COOKIE_VALUE_LENGTH) && header.startsWith("sessionIdCookie")) {
+            String path = request.getMethod() + request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+            String gatewaySecretHeader = request.getHeader("Authorization");
+            String authCookie = request.getHeader("Cookie");
 
-            header = header.substring(COOKIE_PREFIX_LENGTH);
-        }
+            if(checkSecret && !gatewaySecret.equals(gatewaySecretHeader)) {
 
-        if(!authenticationExcludedPaths.contains(key)) {
+                this.fail();
+            }
 
-            if(header != null) {
+            if(authCookie != null && authCookie.length() >= COOKIE_LENGTH && authCookie.startsWith("sessionIdCookie")) {
 
-                Session session = sessionService.check(
+                authCookie = authCookie.substring(COOKIE_PREFIX_LENGTH);
+            }
 
-                    header,
-                    authorizationMappings.get(key),
-                    "Not enough privileges to call this API"
-                );
+            if(authMappings.requiresAuthentication(path)) {
 
-                request.setAttribute(ATTRIBUTE_NAME, session);
+                if(authCookie != null) {
+
+                    Session session = sessionService.check(
+
+                        authCookie,
+                        authMappings.requiresAdminPrivilege(path),
+                        "Not enough privileges to call this API"
+                    );
+
+                    request.setAttribute(ATTRIBUTE_NAME, session);
+                }
+
+                else {
+
+                    this.fail();
+                }
             }
 
             else {
 
-                throw new AuthenticationException(new ErrorDetails(ErrorCode.INVALID_AUTH_HEADER));
+                request.removeAttribute(ATTRIBUTE_NAME);
             }
-        }
-
-        else {
-
-            request.removeAttribute(ATTRIBUTE_NAME);
         }
 
         return true;
 	}
+
+    ///..
+    private void fail() throws AuthenticationException {
+
+        throw new AuthenticationException(new ErrorDetails(ErrorCode.INVALID_AUTH_HEADER));
+    }
 
     ///
 }

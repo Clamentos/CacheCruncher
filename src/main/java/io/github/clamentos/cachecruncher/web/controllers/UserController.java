@@ -84,17 +84,13 @@ public class UserController {
 
             "Set-Cookie",
             "sessionIdCookie=" + loginResult.getB().getId() + "; " +
-            "Max-Age=" + (loginResult.getB().getExpiresAt() / 1000) + "; " +
+            "Max-Age=" + (loginResult.getB().getExpiresAt() / 1_000) + "; " +
             "Path=/cache-cruncher; " +
-            "HttpOnly"
+            "HttpOnly; " +
+            "Secure"
         );
 
-        return new ResponseEntity<>(
-
-            new Pair<>(loginResult.getA(), loginResult.getB().getExpiresAt()),
-            headers,
-            HttpStatus.OK
-        );
+        return new ResponseEntity<>(new Pair<>(loginResult.getA(), loginResult.getB().getExpiresAt()), headers, HttpStatus.OK);
     }
 
     ///..
@@ -123,18 +119,18 @@ public class UserController {
 
     ///..
     @PatchMapping
-    public ResponseEntity<Void> updatePrivilege(@RequestParam long id, @RequestParam boolean admin) throws DataAccessException {
+    public ResponseEntity<Void> updatePrivilege(@RequestParam long userId, @RequestParam boolean admin) throws DataAccessException {
 
-        userService.updatePrivilege(id, admin);
+        userService.updatePrivilege(userId, admin);
         return ResponseEntity.ok().build();
     }
 
     ///..
     @DeleteMapping
-    public ResponseEntity<Void> delete(@RequestParam long id, @RequestAttribute(name = "session") Session session)
+    public ResponseEntity<Void> delete(@RequestParam long userId, @RequestAttribute(name = "session") Session session)
     throws AuthorizationException, DataAccessException, EntityNotFoundException {
 
-        userService.delete(id, session);
+        userService.delete(userId, session);
         return ResponseEntity.ok().build();
     }
 
