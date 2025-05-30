@@ -15,6 +15,7 @@ import io.github.clamentos.cachecruncher.persistence.entities.User;
 
 ///..
 import io.github.clamentos.cachecruncher.utility.Pair;
+import io.github.clamentos.cachecruncher.web.dtos.AuthDto;
 
 ///.
 import java.util.List;
@@ -39,6 +40,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -62,11 +64,11 @@ public class UserController {
     }
 
     ///
-    @PostMapping(path = "/register", produces = "text/plain")
-    public ResponseEntity<String> register(@RequestParam final String email, @RequestParam final String password)
+    @PostMapping(path = "/register", produces = "text/plain", consumes = "application/json")
+    public ResponseEntity<String> register(@RequestBody final AuthDto authDto)
     throws DataAccessException, EntityAlreadyExistsException, IllegalArgumentException, MailException {
 
-        return ResponseEntity.ok(userService.register(email, password));
+        return ResponseEntity.ok(userService.register(authDto));
     }
 
     ///..
@@ -79,29 +81,41 @@ public class UserController {
     }
 
     ///..
-    @PostMapping(path = "/login", produces = "application/json")
+    @PostMapping(path = "/login", produces = "application/json", consumes = "application/json")
     public ResponseEntity<Pair<User, Long>> login(
 
-        @RequestParam final String email,
-        @RequestParam final String password,
+        @RequestBody final AuthDto authDto,
         @RequestHeader(name = "User-Agent") final String device
 
     ) throws AuthenticationException, DataAccessException {
 
-        final Pair<User, Session> loginResult =  userService.login(email, password, device);
-        final HttpHeaders headers = new HttpHeaders();
+        final Pair<User, Session> loginResult =  userService.login(authDto, device);
 
-        headers.add(
+        return new ResponseEntity<>(
 
-            "Set-Cookie",
-            "sessionIdCookie=" + loginResult.getB().getId() + "; " +
-            "Max-Age=" + (loginResult.getB().getExpiresAt() / 1_000) + "; " +
-            "Path=/cache-cruncher; " +
-            "HttpOnly; " +
-            "Secure"
+            new Pair<>(loginResult.getA(), loginResult.getB().getExpiresAt()),
+            this.generateCookie(loginResult.getB().getId(), loginResult.getB().getExpiresAt()),
+            HttpStatus.OK
         );
+    }
 
-        return new ResponseEntity<>(new Pair<>(loginResult.getA(), loginResult.getB().getExpiresAt()), headers, HttpStatus.OK);
+    ///..
+    @PostMapping(path = "/refresh", produces = "text/plain")
+    public ResponseEntity<Long> refresh(
+
+        @RequestAttribute(name = "session") final Session session,
+        @RequestHeader(name = "User-Agent") final String device
+
+    ) throws AuthenticationException, AuthorizationException, DataAccessException {
+
+        final Session refreshedSession = userService.refresh(session, device);
+
+        return new ResponseEntity<>(
+            
+            refreshedSession.getExpiresAt(),
+            this.generateCookie(refreshedSession.getId(), refreshedSession.getExpiresAt()),
+            HttpStatus.OK
+        );
     }
 
     ///..
@@ -144,6 +158,24 @@ public class UserController {
 
         userService.delete(userId, session);
         return ResponseEntity.ok().build();
+    }
+
+    ///.
+    private HttpHeaders generateCookie(String sessionId, long expiresAt) {
+
+        final HttpHeaders headers = new HttpHeaders();
+
+        headers.add(
+
+            "Set-Cookie",
+            "sessionIdCookie=" + sessionId + "; " +
+            "Max-Age=" + (expiresAt / 1_000) + "; " +
+            "Path=/cache-cruncher; " +
+            "HttpOnly; " +
+            "Secure"
+        );
+
+        return headers;
     }
 
     ///

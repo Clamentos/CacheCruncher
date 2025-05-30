@@ -106,7 +106,7 @@ public class SessionService {
 
     ///
     @Transactional
-    public Session generate(final long userId, final String username, final boolean isAdmin, final String device)
+    public Session generate(final long userId, final String email, final boolean isAdmin, final String device)
     throws AuthorizationException, DataAccessException {
 
         if(sessionsCounter.getAndUpdate(current -> this.updateCounter(current, maxTotalSessions)) >= maxTotalSessions) {
@@ -125,7 +125,7 @@ public class SessionService {
         secureRandom.nextBytes(rawSessionId);
 
         final String sessionId = Base64.getEncoder().encodeToString(rawSessionId);
-        final Session session = new Session(userId, System.currentTimeMillis() + sessionDuration, username, device, sessionId, isAdmin);
+        final Session session = new Session(userId, System.currentTimeMillis() + sessionDuration, email, device, sessionId, isAdmin);
 
         try {
 
@@ -167,6 +167,7 @@ public class SessionService {
     }
 
     ///..
+    @Transactional
     public void remove(final String sessionId) throws AuthenticationException, DataAccessException {
 
         final Session sessionToBeRemoved = sessions.get(sessionId);
@@ -183,6 +184,7 @@ public class SessionService {
 
     ///..
     @Transactional
+    @SuppressWarnings("squid:S6809")
     public void removeAll(final long userId) {
 
         for(final Session session : sessions.values()) {

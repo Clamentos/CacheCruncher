@@ -27,6 +27,9 @@ import io.github.clamentos.cachecruncher.persistence.entities.User;
 ///..
 import io.github.clamentos.cachecruncher.utility.Pair;
 
+///..
+import io.github.clamentos.cachecruncher.web.dtos.AuthDto;
+
 ///.
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -128,8 +131,13 @@ public class UserService {
 
     ///
     @Transactional
-    public String register(final String email, final String password)
+    public String register(final AuthDto authDto)
     throws DataAccessException, EntityAlreadyExistsException, IllegalArgumentException, MailException {
+
+        userValidator.validate(authDto);
+
+        final String email = authDto.getEmail();
+        final String password = authDto.getPassword();
 
         userValidator.validate(password);
         if(userDao.exists(email)) throw new EntityAlreadyExistsException(new ErrorDetails(ErrorCode.USER_ALREADY_EXISTS, email));
@@ -205,9 +213,12 @@ public class UserService {
 
     ///..
     @Transactional(noRollbackFor = WrongPasswordException.class)
-    public Pair<User, Session> login(final String email, final String password, final String device)
-    throws AuthenticationException, DataAccessException {
+    public Pair<User, Session> login(final AuthDto authDto, final String device) throws AuthenticationException, DataAccessException {
 
+        userValidator.validate(authDto);
+
+        final String email = authDto.getEmail();
+        final String password = authDto.getPassword();
         final User user = userDao.selectByEmail(email);
         final long now = System.currentTimeMillis();
 
@@ -253,6 +264,15 @@ public class UserService {
 
             throw new WrongPasswordException(new ErrorDetails(ErrorCode.WRONG_PASSWORD));
         }
+    }
+
+    ///..
+    @Transactional
+    public Session refresh(final Session session, final String device)
+    throws AuthenticationException, AuthorizationException, DataAccessException {
+
+        sessionService.remove(session.getId());
+        return sessionService.generate(session.getUserId(), session.getEmail(), session.isAdmin(), device);
     }
 
     ///..
