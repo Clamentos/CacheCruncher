@@ -11,22 +11,15 @@ import java.util.Collection;
 public abstract class BasicValidator {
 
     ///
-    public void requireNotNull(Object obj, String name) throws IllegalArgumentException {
+    public void requireNotNull(final Object obj, final String name) throws IllegalArgumentException {
 
-        if(obj == null) {
-
-            throw this.fail("BasicValidator.requireNotNull -> Argument cannot be null", name);
-        }
+        if(obj == null) throw this.fail("BasicValidator.requireNotNull -> Argument cannot be null", name);
     }
 
     ///..
-    public void requireNotNullAll(Collection<?> objs, String name) throws IllegalArgumentException {
+    public void requireNotNullAll(final Collection<?> objs, final String name) throws IllegalArgumentException {
 
-        if(objs == null) {
-
-            throw this.fail("BasicValidator.requireNotNullAll -> Argument cannot be null", name);
-        }
-
+        if(objs == null) throw this.fail("BasicValidator.requireNotNullAll -> Argument cannot be null", name);
         int index = 0;
 
         for(Object obj : objs) {
@@ -37,34 +30,26 @@ public abstract class BasicValidator {
     }
 
     ///..
-    public void requireNull(Object obj, String name) throws IllegalArgumentException {
+    public void requireNull(final Object obj, final String name) throws IllegalArgumentException {
 
-        if(obj != null) {
-
-            throw this.fail("BasicValidator.requireNull -> Argument must be null", name);
-        }
+        if(obj != null) throw this.fail("BasicValidator.requireNull -> Argument must be null", name);
     }
 
     ///..
-    public void requireNotBlank(String str, String name) throws IllegalArgumentException {
+    public void requireNotBlank(final String str, final String name) throws IllegalArgumentException {
 
-        if(str == null || str.isBlank()) {
-
-            throw this.fail("BasicValidator.requireNotBlank -> Argument cannot be null or blank", name);
-        }
+        if(str == null || str.isBlank()) throw this.fail("BasicValidator.requireNotBlank -> Argument cannot be null or blank", name);
     }
 
     ///..
-    public void requireNotEmpty(Collection<?> objs, String name) throws IllegalArgumentException {
+    public void requireNotEmpty(final Collection<?> objs, final String name) throws IllegalArgumentException {
 
-        if(objs == null || objs.isEmpty()) {
-
-            throw this.fail("BasicValidator.requireNotEmpty -> Argument cannot be null or empty", name);
-        }
+        if(objs == null || objs.isEmpty()) throw this.fail("BasicValidator.requireNotEmpty -> Argument cannot be null or empty", name);
     }
 
     ///..
-    public <T extends Comparable<T>> void requireBetween(T val, T low, T high, String name) throws IllegalArgumentException {
+    public <T extends Comparable<T>> void requireBetween(final T val, final T low, final T high, final String name)
+    throws IllegalArgumentException {
 
         if(val == null || val.compareTo(low) < 0 || val.compareTo(high) > 0) {
 
@@ -77,7 +62,7 @@ public abstract class BasicValidator {
     }
 
     ///.
-    protected IllegalArgumentException fail(String message, String name) {
+    protected IllegalArgumentException fail(final String message, final String name) {
 
         return new IllegalArgumentException(new ErrorDetails(ErrorCode.VALIDATOR_BAD_FORMAT, name, message));
     }

@@ -8,7 +8,7 @@ public final class LruReplacementPolicy implements ReplacementPolicy {
     private final int[][] lruCounters;
 
     ///
-    public LruReplacementPolicy(int associativity, int numSetsPow) {
+    public LruReplacementPolicy(final int associativity, final int numSetsPow) {
 
         this.associativity = associativity;
         lruCounters = new int[numSetsPow][associativity];
@@ -27,16 +27,13 @@ public final class LruReplacementPolicy implements ReplacementPolicy {
 
     ///
     @Override
-    public int getVictim(int index) {
+    public int getVictim(final int index) {
 
-        int[] lruCountersOfSet = lruCounters[index];
+        final int[] lruCountersOfSet = lruCounters[index];
 
         for(int i = 0; i < lruCountersOfSet.length; i++) {
 
-            if(lruCountersOfSet[i] == 0) {
-
-                return i;
-            }
+            if(lruCountersOfSet[i] == 0) return i;
         }
 
         return 0;
@@ -44,16 +41,13 @@ public final class LruReplacementPolicy implements ReplacementPolicy {
 
     ///..
     @Override
-    public void update(int index, int way) {
+    public void update(final int index, final int way, final boolean onHit) {
 
-        int oldLru = lruCounters[index][way];
+        final int oldLru = lruCounters[index][way];
 
         for(int i = 0; i < lruCounters[index].length; i++) {
 
-            if(i != way && lruCounters[index][i] > oldLru) {
-
-                lruCounters[index][i]--;
-            }
+            if(i != way && lruCounters[index][i] > oldLru) lruCounters[index][i]--;
         }
 
         lruCounters[index][way] = associativity - 1;

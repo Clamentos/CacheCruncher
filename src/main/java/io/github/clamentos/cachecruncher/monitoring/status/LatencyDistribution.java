@@ -6,6 +6,7 @@ import io.github.clamentos.cachecruncher.utility.Triple;
 
 ///.
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -23,25 +24,25 @@ public final class LatencyDistribution {
     private final String outliersStartingBoundary;
 
     ///
-    public LatencyDistribution(List<Pair<Integer, Integer>> breakpoints, int outliersStartingBoundary) {
+    public LatencyDistribution(final List<Pair<Integer, Integer>> breakpoints, final int outliersStartingBoundary) {
 
         buckets = new ArrayList<>(breakpoints.size());
 
-        for(Pair<Integer, Integer> breakpoint : breakpoints) {
+        for(final Pair<Integer, Integer> breakpoint : breakpoints) {
 
             buckets.add(new Triple<>(breakpoint.getA(), breakpoint.getB(), new AtomicInteger()));
         }
 
         outliersCounter = new AtomicInteger();
-        this.outliersStartingBoundary = Integer.toString(outliersStartingBoundary);
+        this.outliersStartingBoundary = Integer.toString(outliersStartingBoundary) + "+";
     }
 
     ///
-    public void update(int latency) {
+    public void update(final int latency) {
 
-        for(Triple<Integer, Integer, AtomicInteger> bucket : buckets) {
+        for(final Triple<Integer, Integer, AtomicInteger> bucket : buckets) {
 
-            if(bucket.getA().compareTo(latency) >= 0 && bucket.getB().compareTo(latency) <= 0) {
+            if(bucket.getA().compareTo(latency) <= 0 && bucket.getB().compareTo(latency) >= 0) {
 
                 bucket.getC().incrementAndGet();
                 return;
@@ -52,20 +53,20 @@ public final class LatencyDistribution {
     }
 
     ///..
-    public List<Map<String, Integer>> getDistribution() {
+    public Map<String, Integer> getDistribution() {
 
-        List<Map<String, Integer>> distribution = new ArrayList<>(buckets.size() + 1);
+        final Map<String, Integer> distribution = HashMap.newHashMap(buckets.size());
 
-        for(Triple<Integer, Integer, AtomicInteger> bucket : buckets) {
+        for(final Triple<Integer, Integer, AtomicInteger> bucket : buckets) {
 
-            distribution.add(Map.of(
+            distribution.put(
 
                 bucket.getA().toString() + "-" + bucket.getB().toString(),
                 bucket.getC().get()
-            ));
+            );
         }
 
-        distribution.add(Map.of(outliersStartingBoundary, outliersCounter.get()));
+        distribution.put(outliersStartingBoundary, outliersCounter.get());
         return distribution;
     }
 

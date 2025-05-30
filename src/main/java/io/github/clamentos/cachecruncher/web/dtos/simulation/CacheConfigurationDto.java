@@ -33,13 +33,13 @@ public final class CacheConfigurationDto extends MemoryConfigurationDto {
     @JsonCreator
     public CacheConfigurationDto(
 
-        @JsonProperty("accessTime") Long accessTime,
-        @JsonProperty("name") String name,
-        @JsonProperty("numSetsExp") Integer numSetsExp,
-        @JsonProperty("lineSizeExp") Integer lineSizeExp,
-        @JsonProperty("associativity") Integer associativity,
-        @JsonProperty("replacementPolicyType") ReplacementPolicyType replacementPolicyType,
-        @JsonProperty("nextLevelConfiguration") MemoryConfigurationDto nextLevelConfiguration
+        @JsonProperty("accessTime") final Long accessTime,
+        @JsonProperty("name") final String name,
+        @JsonProperty("numSetsExp") final Integer numSetsExp,
+        @JsonProperty("lineSizeExp") final Integer lineSizeExp,
+        @JsonProperty("associativity") final Integer associativity,
+        @JsonProperty("replacementPolicyType") final ReplacementPolicyType replacementPolicyType,
+        @JsonProperty("nextLevelConfiguration") final MemoryConfigurationDto nextLevelConfiguration
     ) {
 
         super(accessTime);

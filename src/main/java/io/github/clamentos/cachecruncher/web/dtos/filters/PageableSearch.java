@@ -19,7 +19,7 @@ public sealed class PageableSearch permits ResponseInfoSearchFilter, LogSearchFi
 
     ///
     @JsonCreator
-    public PageableSearch(@JsonProperty("lastTimestamp") Long lastTimestamp, @JsonProperty("count") Integer count) {
+    public PageableSearch(@JsonProperty("lastTimestamp") final Long lastTimestamp, @JsonProperty("count") final Integer count) {
 
         this.lastTimestamp = lastTimestamp;
         this.count = count;

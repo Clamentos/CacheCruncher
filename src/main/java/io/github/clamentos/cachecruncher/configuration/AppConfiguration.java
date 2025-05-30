@@ -42,14 +42,14 @@ public class AppConfiguration implements WebMvcConfigurer {
 
     ///
     @Autowired
-    public AppConfiguration(RequestInterceptor requestInterceptor) {
+    public AppConfiguration(final RequestInterceptor requestInterceptor) {
 
         this.requestInterceptor = requestInterceptor;
     }
 
     ///
     @Override
-    public void addInterceptors(InterceptorRegistry registry) {
+    public void addInterceptors(final InterceptorRegistry registry) {
 
 		registry.addInterceptor(requestInterceptor).addPathPatterns("/**");
 	}
@@ -58,7 +58,7 @@ public class AppConfiguration implements WebMvcConfigurer {
     @Bean
     public SimpleAsyncTaskScheduler taskScheduler() {
 
-        SimpleAsyncTaskScheduler scheduler = new SimpleAsyncTaskScheduler();
+        final SimpleAsyncTaskScheduler scheduler = new SimpleAsyncTaskScheduler();
 
         scheduler.setTargetTaskExecutor(new SimpleAsyncTaskExecutor("CacheCruncherTask-"));
         scheduler.setVirtualThreads(true);
@@ -68,11 +68,11 @@ public class AppConfiguration implements WebMvcConfigurer {
 
     ///..
     @Bean
-    public TaskExecutor simulationsExecutor(Environment environment) {
+    public TaskExecutor simulationsExecutor(final Environment environment) {
 
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        final ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 
-        executor.setCorePoolSize(environment.getProperty("cache-cruncher.simulation.executorPool.minThreads", Integer.class, 4));
+        executor.setCorePoolSize(environment.getProperty("cache-cruncher.simulation.executorPool.minThreads", Integer.class, 1));
         executor.setMaxPoolSize(environment.getProperty("cache-cruncher.simulation.executorPool.maxThreads", Integer.class, 8));
         executor.setQueueCapacity(environment.getProperty("cache-cruncher.simulation.executorPool.maxQueueSize", Integer.class, 1_024));
         executor.setThreadNamePrefix("CacheCruncherSimulator-");

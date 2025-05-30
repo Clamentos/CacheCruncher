@@ -28,9 +28,9 @@ public final class CacheSimulationArgumentsDto {
     @JsonCreator
     public CacheSimulationArgumentsDto(
 
-        @JsonProperty("traceIds") Set<Long> traceIds,
-        @JsonProperty("cacheConfigurations") Set<CacheConfigurationDto> cacheConfigurations,
-        @JsonProperty("simulationFlags") Set<SimulationFlag> simulationFlags
+        @JsonProperty("traceIds") final Set<Long> traceIds,
+        @JsonProperty("cacheConfigurations") final Set<CacheConfigurationDto> cacheConfigurations,
+        @JsonProperty("simulationFlags") final Set<SimulationFlag> simulationFlags
     ) {
 
         this.traceIds = traceIds;

@@ -44,14 +44,14 @@ public class SessionDao extends Dao {
 
     ///
     @Autowired
-    public SessionDao(JdbcTemplate jdbcTemplate, Environment environment) {
+    public SessionDao(final JdbcTemplate jdbcTemplate, final Environment environment) {
 
         super(jdbcTemplate, environment);
     }
 
     ///
     @Transactional
-    public void insert(Session session) throws DataAccessException {
+    public void insert(final Session session) throws DataAccessException {
 
         super.getJdbcTemplate().update(INSERT_SQL, preparedStatement -> {
 
@@ -72,20 +72,20 @@ public class SessionDao extends Dao {
 
     ///..
     @Transactional
-    public void delete(String id) throws DataAccessException {
+    public void delete(final String id) throws DataAccessException {
 
         super.getJdbcTemplate().update(DELETE_BY_ID_SQL, preparedStatement -> preparedStatement.setString(1, id));
     }
 
     ///..
     @Transactional
-    public int deleteAll(Collection<String> ids) throws DataAccessException {
+    public int deleteAll(final Collection<String> ids) throws DataAccessException {
 
         int deleted = 0;
 
         if(!ids.isEmpty()) {
 
-            List<String> idsList = ids.stream().toList();
+            final List<String> idsList = ids.stream().toList();
             int batchSize = super.getBatchSize();
             int start = 0;
 
@@ -101,9 +101,9 @@ public class SessionDao extends Dao {
     }
 
     ///.
-    private List<Session> mapResultSet(ResultSet resultSet) throws SQLException {
+    private List<Session> mapResultSet(final ResultSet resultSet) throws SQLException {
 
-        List<Session> sessions = new ArrayList<>();
+        final List<Session> sessions = new ArrayList<>();
 
         while(resultSet.next()) {
 
@@ -122,16 +122,13 @@ public class SessionDao extends Dao {
     }
 
     ///..
-    private int doDelete(List<String> ids) throws DataAccessException {
+    private int doDelete(final List<String> ids) throws DataAccessException {
 
-        StringBuilder idsString = new StringBuilder();
+        final StringBuilder idsString = new StringBuilder();
 
-        for(String id : ids) {
-
-            idsString.append("\"").append(id).append("\",");
-        }
-
+        for(final String id : ids) idsString.append("\"").append(id).append("\",");
         idsString.deleteCharAt(idsString.length() - 1).append(")");
+
         return super.getJdbcTemplate().update(DELETE_ALL_BY_IDS_SQL + idsString);
     }
 

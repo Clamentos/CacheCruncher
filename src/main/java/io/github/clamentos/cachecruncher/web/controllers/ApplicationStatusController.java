@@ -50,7 +50,7 @@ public class ApplicationStatusController {
 
     ///
     @Autowired
-    public ApplicationStatusController(ApplicationStatusService applicationStatusService) {
+    public ApplicationStatusController(final ApplicationStatusService applicationStatusService) {
 
         this.applicationStatusService = applicationStatusService;
     }
@@ -59,12 +59,12 @@ public class ApplicationStatusController {
     @GetMapping(path = "/metrics", produces = "application/json")
     public ResponseEntity<ApplicationStatusDto> getStatistics(
 
-        @RequestParam boolean includeRuntimeInfo,
-        @RequestParam boolean includeMemoryInfo,
-        @RequestParam boolean includeThreadsInfo,
-        @RequestParam boolean includeResponsesInfo,
-        @RequestParam boolean includeSimulationInfo,
-        @RequestParam boolean includeSessionsInfo
+        @RequestParam final boolean includeRuntimeInfo,
+        @RequestParam final boolean includeMemoryInfo,
+        @RequestParam final boolean includeThreadsInfo,
+        @RequestParam final boolean includeResponsesInfo,
+        @RequestParam final boolean includeSimulationInfo,
+        @RequestParam final boolean includeSessionsInfo
     ) {
 
         return ResponseEntity.ok(applicationStatusService.getStatistics(
@@ -80,7 +80,7 @@ public class ApplicationStatusController {
 
     ///..
     @GetMapping(path = "/metrics/history", consumes = "application/json", produces = "application/json")
-    public ResponseEntity<ResponsesInfo> getResponsesInfoByFilter(@RequestBody ResponseInfoSearchFilter responseInfoSearchFilter)
+    public ResponseEntity<ResponsesInfo> getResponsesInfoByFilter(@RequestBody final ResponseInfoSearchFilter responseInfoSearchFilter)
     throws DataAccessException, IllegalArgumentException {
 
         return ResponseEntity.ok(applicationStatusService.getResponsesInfoByFilter(responseInfoSearchFilter));
@@ -88,7 +88,7 @@ public class ApplicationStatusController {
 
     ///..
     @GetMapping(path = "/logs", consumes = "application/json", produces = "application/json")
-    public ResponseEntity<List<Log>> getLogsByFilter(@RequestBody LogSearchFilter logSearchFilter)
+    public ResponseEntity<List<Log>> getLogsByFilter(@RequestBody final LogSearchFilter logSearchFilter)
     throws DataAccessException, IllegalArgumentException {
 
         return ResponseEntity.ok(applicationStatusService.getLogsByFilter(logSearchFilter));
@@ -103,7 +103,7 @@ public class ApplicationStatusController {
 
     ///..
     @DeleteMapping(path = "/metrics/history")
-    public ResponseEntity<Integer> deleteMetrics(@RequestParam long createdAtStart, @RequestParam long createdAtEnd)
+    public ResponseEntity<Integer> deleteMetrics(@RequestParam final long createdAtStart, @RequestParam final long createdAtEnd)
     throws DataAccessException {
 
         return ResponseEntity.ok(applicationStatusService.deleteMetrics(createdAtStart, createdAtEnd));
@@ -111,7 +111,7 @@ public class ApplicationStatusController {
 
     ///..
     @DeleteMapping(path = "/logs")
-    public ResponseEntity<Integer> deleteLogs(@RequestParam long createdAtStart, @RequestParam long createdAtEnd)
+    public ResponseEntity<Integer> deleteLogs(@RequestParam final long createdAtStart, @RequestParam final long createdAtEnd)
     throws DataAccessException {
 
         return ResponseEntity.ok(applicationStatusService.deleteLogs(createdAtStart, createdAtEnd));

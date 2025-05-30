@@ -17,7 +17,7 @@ public final class ErrorDetails extends Throwable {
     private final Serializable[] arguments;
 
     ///
-    public ErrorDetails(ErrorCode errorCode, Serializable... arguments) {
+    public ErrorDetails(final ErrorCode errorCode, final Serializable... arguments) {
 
         super(null, null, true, false);
 

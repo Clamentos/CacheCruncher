@@ -15,7 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.core.env.Environment;
-
+import org.springframework.dao.DataAccessException;
 ///..
 import org.springframework.scheduling.annotation.Scheduled;
 
@@ -39,7 +39,7 @@ public class MaintenanceService {
 
     ///
     @Autowired
-    public MaintenanceService(LogDao logDao, MetricDao metricDao, Environment environment) {
+    public MaintenanceService(final LogDao logDao, final MetricDao metricDao, final Environment environment) {
 
         this.logDao = logDao;
         this.metricDao = metricDao;
@@ -54,13 +54,21 @@ public class MaintenanceService {
 
         log.info("Starting maintenance task...");
 
-        long logsRetentionLimit = ZonedDateTime.now().minusDays(logsRetention).toInstant().toEpochMilli();
-        long metricsRetentionLimit = ZonedDateTime.now().minusDays(metricsRetention).toInstant().toEpochMilli();
+        try {
 
-        int deletedLogs = logDao.delete(Long.MIN_VALUE, logsRetentionLimit);
-        int deletedMetrics = metricDao.delete(Long.MIN_VALUE, metricsRetentionLimit);
+            final long logsRetentionLimit = ZonedDateTime.now().minusDays(logsRetention).toInstant().toEpochMilli();
+            final long metricsRetentionLimit = ZonedDateTime.now().minusDays(metricsRetention).toInstant().toEpochMilli();
 
-        log.info("Maintenance task completed, {} logs deleted, {} metrics deleted", deletedLogs, deletedMetrics);
+            final int deletedLogs = logDao.delete(Long.MIN_VALUE, logsRetentionLimit);
+            final int deletedMetrics = metricDao.delete(Long.MIN_VALUE, metricsRetentionLimit);
+
+            log.info("Maintenance task completed, {} logs deleted, {} metrics deleted", deletedLogs, deletedMetrics);
+        }
+
+        catch(final DataAccessException exc) {
+
+            log.error("Could not perform maintenance, will abort the job", exc);
+        }
     }
 
     ///

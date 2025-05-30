@@ -17,6 +17,7 @@ public final class ApplicationStatusDto {
     private final ThreadsInfo threadsInfo;
     private final ResponsesInfo responsesInfo;
     private final SimulationStatusInfo simulationInfo;
+    private final Integer sessionsCount;
     private final Integer loggedUsersCount;
 
     ///

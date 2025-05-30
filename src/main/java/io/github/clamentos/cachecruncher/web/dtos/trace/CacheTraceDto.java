@@ -25,12 +25,12 @@ public final class CacheTraceDto {
     @JsonCreator
     public CacheTraceDto(
 
-        @JsonProperty("id") Long id,
-        @JsonProperty("name") String name,
-        @JsonProperty("description") String description,
-        @JsonProperty("createdAt") Long createdAt,
-        @JsonProperty("updatedAt") Long updatedAt,
-        @JsonProperty("trace") CacheTraceBodyDto trace
+        @JsonProperty("id") final Long id,
+        @JsonProperty("name") final String name,
+        @JsonProperty("description") final String description,
+        @JsonProperty("createdAt") final Long createdAt,
+        @JsonProperty("updatedAt") final Long updatedAt,
+        @JsonProperty("trace") final CacheTraceBodyDto trace
     ) {
 
         this.id = id;

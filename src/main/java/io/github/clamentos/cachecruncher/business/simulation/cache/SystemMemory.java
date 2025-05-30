@@ -23,7 +23,7 @@ public final class SystemMemory implements Memory {
     private final MemorySimulationReportDto memorySimulationReportDto;
 
     ///
-    public SystemMemory(long accessTime, EventManager eventManager) {
+    public SystemMemory(final long accessTime, final EventManager eventManager) {
 
         this.accessTime = accessTime;
         this.eventManager = eventManager;
@@ -33,14 +33,14 @@ public final class SystemMemory implements Memory {
 
     ///
     @Override
-    public long advance(long cycles) {
+    public long advance(final long cycles) {
 
         return eventManager.advance(cycles);
     }
 
     ///..
     @Override
-    public long read(long address) {
+    public long read(final long address) {
 
         memorySimulationReportDto.setReadRequests(memorySimulationReportDto.getReadRequests() + 1);
         return eventManager.advance(accessTime);
@@ -48,7 +48,7 @@ public final class SystemMemory implements Memory {
 
     ///..
     @Override
-    public long write(long address) {
+    public long write(final long address) {
 
         memorySimulationReportDto.setWriteRequests(memorySimulationReportDto.getWriteRequests() + 1);
         return eventManager.advance(accessTime);

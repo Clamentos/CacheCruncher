@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS cache_trace (
 
     id                      BIGINT           PRIMARY KEY DEFAULT (NEXT VALUE FOR cache_trace_id_seq),
     created_at              BIGINT           NOT NULL,
-    updated_at              BIGINT           NOT NULL,
+    updated_at              BIGINT           NULL,
     description             VARCHAR(1024)    NOT NULL,
     name                    VARCHAR(128)     NOT NULL,
     data                    TEXT             NOT NULL
@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS user (
     id                      BIGINT           PRIMARY KEY DEFAULT (NEXT VALUE FOR user_id_seq),
     locked_until            BIGINT           NULL,
     created_at              BIGINT           NOT NULL,
+    validated_at            BIGINT           NULL,
     email                   VARCHAR(64)      NOT NULL UNIQUE,
     password                VARCHAR(128)     NOT NULL,
     failed_accesses         SMALLINT         NOT NULL,
@@ -89,8 +90,8 @@ CREATE TABLE IF NOT EXISTS session (
 SET FOREIGN_KEY_CHECKS = 1;
 
 ---.
-INSERT INTO user (locked_until, created_at, email, password, failed_accesses, is_admin) VALUES (NULL, 0, 'admin@test.com', '$2a$10$cbe9tmKjwizZrYcZbwBGjuHdOh6IwTLeW12seIPXAKDBiMxu66YgG', 0, 1); -- Password123?!
+INSERT INTO user (locked_until, created_at, validated_at, email, password, failed_accesses, is_admin) VALUES (NULL, 0, 0, 'admin@test.com', '$2a$10$cbe9tmKjwizZrYcZbwBGjuHdOh6IwTLeW12seIPXAKDBiMxu66YgG', 0, 1); -- Password123?!
 
-INSERT INTO user (locked_until, created_at, email, password, failed_accesses, is_admin) VALUES (NULL, 0, 'normal@test.com', '$2a$10$6DJuBQV.mIQCmTxEDJ6vFOBZzoFCAJHE.nzG8qwu9DhLZmvJCYCHW', 0, 0); -- Password123?!
+INSERT INTO user (locked_until, created_at, validated_at, email, password, failed_accesses, is_admin) VALUES (NULL, 0, 0, 'normal@test.com', '$2a$10$6DJuBQV.mIQCmTxEDJ6vFOBZzoFCAJHE.nzG8qwu9DhLZmvJCYCHW', 0, 0); -- Password123?!
 
 ---

@@ -57,7 +57,7 @@ public final class RequestsMetrics {
 
     ///
     @Autowired
-    public RequestsMetrics(Environment environment) throws IllegalArgumentException {
+    public RequestsMetrics(final Environment environment) throws IllegalArgumentException {
 
         latencyTracker = new ConcurrentHashMap<>();
         latencyTrackerShadow = new ConcurrentHashMap<>();
@@ -65,14 +65,14 @@ public final class RequestsMetrics {
         direction = new AtomicBoolean();
         currentSecond = new AtomicInteger();
 
-        String breakpointsProp = environment.getProperty(
+        final String breakpointsProp = environment.getProperty(
 
             "cache-cruncher.monitoring.status.breakpoints",
             String.class,
             "0-10,11-20,21-50-51-100,101-200,201-500"
         );
 
-        String[] breakpointsSplits = breakpointsProp.split(",");
+        final String[] breakpointsSplits = breakpointsProp.split(",");
         breakpoints = new ArrayList<>(breakpointsSplits.length);
 
         if(breakpointsSplits.length == 0) {
@@ -80,23 +80,15 @@ public final class RequestsMetrics {
             throw this.fail("Property \"cache-cruncher.monitoring.status.breakpoints\" must have at least 1 element");
         }
 
-        for(String breakpoint : breakpointsSplits) {
+        for(final String breakpoint : breakpointsSplits) {
 
-            String[] boundaries = breakpoint.split("-");
+            final String[] boundaries = breakpoint.split("-");
+            if(boundaries.length != 2) throw this.fail("Breakpoints must be formatted: \"X-Y\"");
 
-            if(boundaries.length != 2) {
+            final int boundaryStart = Integer.parseInt(boundaries[0]);
+            final int boundaryEnd = Integer.parseInt(boundaries[1]);
 
-                throw this.fail("Breakpoints must be formatted: \"X-Y\"");
-            }
-
-            int boundaryStart = Integer.parseInt(boundaries[0]);
-            int boundaryEnd = Integer.parseInt(boundaries[1]);
-
-            if(boundaryStart >= boundaryEnd) {
-
-                throw this.fail("Breakpoints must respect: Y > X");
-            }
-
+            if(boundaryStart >= boundaryEnd) throw this.fail("Breakpoints must respect: Y > X");
             breakpoints.add(new Pair<>(boundaryStart, boundaryEnd));
         }
 
@@ -111,7 +103,7 @@ public final class RequestsMetrics {
     }
 
     ///
-    public void updateMetrics(String path, HttpStatus status, int elapsed) {
+    public void updateMetrics(final String path, final HttpStatus status, final int elapsed) {
 
         while(currentSecond.get() == rolloverTime) {
 
@@ -120,8 +112,8 @@ public final class RequestsMetrics {
             // the time it takes for the scheduled task to set the direction.
         }
 
-        int slotValue = currentSecond.get();
-        var currentTracker = direction.get() ? latencyTrackerShadow : latencyTracker;
+        final int slotValue = currentSecond.get();
+        final var currentTracker = direction.get() ? latencyTrackerShadow : latencyTracker;
 
         currentTracker
 
@@ -133,15 +125,15 @@ public final class RequestsMetrics {
     }
 
     ///..
-    public void tryRollover(Consumer<Map<Integer, Map<String, Map<HttpStatus, LatencyDistribution>>>> action) {
+    public void tryRollover(final Consumer<Map<Integer, Map<String, Map<HttpStatus, LatencyDistribution>>>> action) {
 
         if(currentSecond.get() == rolloverTime) {
 
-            boolean oldDirection = direction.get();
-            var currentTracker = oldDirection ? latencyTrackerShadow : latencyTracker;
+            final boolean oldDirection = direction.get();
+            final var currentTracker = oldDirection ? latencyTrackerShadow : latencyTracker;
+
             direction.set(!oldDirection);
             currentSecond.set(0);
-
             action.accept(currentTracker);
             currentTracker.clear();
         }
@@ -153,22 +145,22 @@ public final class RequestsMetrics {
     }
 
     ///..
-    public Map<Integer, Map<Integer, Map<HttpStatus, List<Map<String, Integer>>>>> getMetrics(Map<String, Integer> uriIdMap) {
+    public Map<Integer, Map<Integer, Map<HttpStatus, Map<String, Integer>>>> getMetrics(final Map<String, Integer> uriIdMap) {
 
-        Map<Integer, Map<Integer, Map<HttpStatus, List<Map<String, Integer>>>>> metrics = new HashMap<>();
-        var currentTracker = direction.get() ? latencyTrackerShadow : latencyTracker;
+        final Map<Integer, Map<Integer, Map<HttpStatus, Map<String, Integer>>>> metrics = new HashMap<>();
+        final var currentTracker = direction.get() ? latencyTrackerShadow : latencyTracker;
 
-        for(Map.Entry<Integer, Map<String, Map<HttpStatus, LatencyDistribution>>> trackerEntry : currentTracker.entrySet()) {
+        for(final Map.Entry<Integer, Map<String, Map<HttpStatus, LatencyDistribution>>> trackerEntry : currentTracker.entrySet()) {
 
-            Map<Integer, Map<HttpStatus, List<Map<String, Integer>>>> pathMetrics = new HashMap<>();
+            final Map<Integer, Map<HttpStatus, Map<String, Integer>>> pathMetrics = new HashMap<>();
             metrics.put(trackerEntry.getKey(), pathMetrics);
 
-            for(Map.Entry<String, Map<HttpStatus, LatencyDistribution>> pathEntry : trackerEntry.getValue().entrySet()) {
+            for(final Map.Entry<String, Map<HttpStatus, LatencyDistribution>> pathEntry : trackerEntry.getValue().entrySet()) {
 
-                Map<HttpStatus, List<Map<String, Integer>>> statusMetrics = new EnumMap<>(HttpStatus.class);
+                final Map<HttpStatus, Map<String, Integer>> statusMetrics = new EnumMap<>(HttpStatus.class);
                 pathMetrics.put(uriIdMap.get(pathEntry.getKey()), statusMetrics);
 
-                for(Map.Entry<HttpStatus, LatencyDistribution> statusEntry : pathEntry.getValue().entrySet()) {
+                for(final Map.Entry<HttpStatus, LatencyDistribution> statusEntry : pathEntry.getValue().entrySet()) {
 
                     statusMetrics.put(statusEntry.getKey(), statusEntry.getValue().getDistribution());
                 }
@@ -179,7 +171,7 @@ public final class RequestsMetrics {
     }
 
     ///.
-    private IllegalArgumentException fail(String message) {
+    private IllegalArgumentException fail(final String message) {
 
         return new IllegalArgumentException(new ErrorDetails(ErrorCode.GENERIC, message));
     }

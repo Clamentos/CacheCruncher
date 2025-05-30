@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS cache_trace (
 
     id                      BIGINT           PRIMARY KEY DEFAULT (NEXT VALUE FOR cache_trace_id_seq),
     created_at              BIGINT           NOT NULL,
-    updated_at              BIGINT           NOT NULL,
+    updated_at              BIGINT           NULL,
     description             VARCHAR(1024)    NOT NULL,
     name                    VARCHAR(128)     NOT NULL,
     data                    TEXT             NOT NULL
@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS user (
     id                      BIGINT           PRIMARY KEY DEFAULT (NEXT VALUE FOR user_id_seq),
     locked_until            BIGINT           NULL,
     created_at              BIGINT           NOT NULL,
+    validated_at            BIGINT           NULL,
     email                   VARCHAR(64)      NOT NULL UNIQUE,
     password                VARCHAR(128)     NOT NULL,
     failed_accesses         SMALLINT         NOT NULL,

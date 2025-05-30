@@ -53,7 +53,7 @@ public class RequestInterceptor implements HandlerInterceptor {
 
     ///
     @Autowired
-    public RequestInterceptor(SessionService sessionService, AuthMappings authMappings, Environment environment) {
+    public RequestInterceptor(final SessionService sessionService, final AuthMappings authMappings, final Environment environment) {
 
         this.sessionService = sessionService;
         this.authMappings = authMappings;
@@ -66,7 +66,7 @@ public class RequestInterceptor implements HandlerInterceptor {
 
     ///
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+    public boolean preHandle(final HttpServletRequest request, final HttpServletResponse response, final Object handler)
     throws AuthenticationException, AuthorizationException {
 
         if(!bypass) {
@@ -77,7 +77,7 @@ public class RequestInterceptor implements HandlerInterceptor {
 
             if(checkSecret && !gatewaySecret.equals(gatewaySecretHeader)) {
 
-                this.fail();
+                throw this.fail();
             }
 
             if(authCookie != null && authCookie.length() >= COOKIE_LENGTH && authCookie.startsWith("sessionIdCookie")) {
@@ -101,7 +101,7 @@ public class RequestInterceptor implements HandlerInterceptor {
 
                 else {
 
-                    this.fail();
+                    throw this.fail();
                 }
             }
 
@@ -115,9 +115,9 @@ public class RequestInterceptor implements HandlerInterceptor {
 	}
 
     ///..
-    private void fail() throws AuthenticationException {
+    private AuthenticationException fail() {
 
-        throw new AuthenticationException(new ErrorDetails(ErrorCode.INVALID_AUTH_HEADER));
+        return new AuthenticationException(new ErrorDetails(ErrorCode.INVALID_AUTH_HEADER));
     }
 
     ///

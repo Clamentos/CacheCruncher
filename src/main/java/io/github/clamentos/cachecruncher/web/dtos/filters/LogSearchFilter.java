@@ -31,14 +31,14 @@ public final class LogSearchFilter extends PageableSearch {
     @JsonCreator
     public LogSearchFilter(
 
-        @JsonProperty("lastTimestamp") Long lastTimestamp,
-        @JsonProperty("count") Integer count,
-        @JsonProperty("createdAtStart") Long createdAtStart,
-        @JsonProperty("createdAtEnd") Long createdAtEnd,
-        @JsonProperty("levels") Set<LogLevel> levels,
-        @JsonProperty("threadLike") String threadLike,
-        @JsonProperty("loggerLike") String loggerLike,
-        @JsonProperty("messageLike") String messageLike
+        @JsonProperty("lastTimestamp") final Long lastTimestamp,
+        @JsonProperty("count") final Integer count,
+        @JsonProperty("createdAtStart") final Long createdAtStart,
+        @JsonProperty("createdAtEnd") final Long createdAtEnd,
+        @JsonProperty("levels") final Set<LogLevel> levels,
+        @JsonProperty("threadLike") final String threadLike,
+        @JsonProperty("loggerLike") final String loggerLike,
+        @JsonProperty("messageLike") final String messageLike
     ) {
 
         super(lastTimestamp, count);

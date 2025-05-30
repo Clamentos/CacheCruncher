@@ -9,6 +9,7 @@ import io.github.clamentos.cachecruncher.error.ErrorDetails;
 
 ///..
 import io.github.clamentos.cachecruncher.utility.BasicValidator;
+import io.github.clamentos.cachecruncher.utility.MultiValueMap;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.trace.CacheTraceBodyDto;
@@ -44,7 +45,7 @@ public class CacheTraceValidator extends BasicValidator {
     }
 
     ///
-    public void validateForCreate(CacheTraceDto cacheTraceDto) throws IllegalArgumentException {
+    public void validateForCreate(final CacheTraceDto cacheTraceDto) throws IllegalArgumentException {
 
         this.validateBasic(cacheTraceDto);
 
@@ -52,21 +53,21 @@ public class CacheTraceValidator extends BasicValidator {
         super.requireNotBlank(cacheTraceDto.getName(), "name");
         super.requireNotBlank(cacheTraceDto.getDescription(), "description");
 
-        CacheTraceBodyDto trace = cacheTraceDto.getTrace();
+        final CacheTraceBodyDto trace = cacheTraceDto.getTrace();
 
         super.requireNotNull(trace, "trace");
         this.validateTraceBody(trace);
     }
 
     ///..
-    public void validateForUpdate(CacheTraceDto cacheTraceDto) throws IllegalArgumentException {
+    public void validateForUpdate(final CacheTraceDto cacheTraceDto) throws IllegalArgumentException {
 
         this.validateBasic(cacheTraceDto);
         super.requireNotNull(cacheTraceDto.getId(), "id");
 
-        String name = cacheTraceDto.getName();
-        String description = cacheTraceDto.getDescription();
-        CacheTraceBodyDto trace = cacheTraceDto.getTrace();
+        final String name = cacheTraceDto.getName();
+        final String description = cacheTraceDto.getDescription();
+        final CacheTraceBodyDto trace = cacheTraceDto.getTrace();
 
         if(name != null) super.requireNotBlank(name, "name");
         if(description != null) super.requireNotBlank(description, "description");
@@ -74,7 +75,7 @@ public class CacheTraceValidator extends BasicValidator {
     }
 
     ///.
-    private void validateBasic(CacheTraceDto cacheTraceDto) throws IllegalArgumentException {
+    private void validateBasic(final CacheTraceDto cacheTraceDto) throws IllegalArgumentException {
 
         super.requireNotNull(cacheTraceDto, "DTO");
 
@@ -83,24 +84,24 @@ public class CacheTraceValidator extends BasicValidator {
     }
 
     ///..
-    private void validateTraceBody(CacheTraceBodyDto trace) throws IllegalArgumentException {
+    private void validateTraceBody(final CacheTraceBodyDto trace) throws IllegalArgumentException {
 
-        Map<String, List<String>> sections = trace.getSections();
+        final MultiValueMap<String, String> sections = trace.getSections();
         super.requireNotNull(sections, "trace.sections");
 
-        for(Map.Entry<String, List<String>> section : sections.entrySet()) {
+        for(final Map.Entry<String, List<String>> section : sections.entrySet()) {
 
-            String key = section.getKey();
-            List<String> value = section.getValue();
+            final String key = section.getKey();
+            final List<String> value = section.getValue();
 
             super.requireNotBlank(key, "trace.sections.key");
             super.requireNotEmpty(value, "trace.sections.value");
 
             for(int i = 0; i < value.size(); i++) {
 
-                String command = value.get(i);
+                final String command = value.get(i);
                 super.requireNotBlank(command, "trace.sections.value" + "[" + i + "]");
-                CacheCommandType commandType = CacheCommandType.determineType(command);
+                final CacheCommandType commandType = CacheCommandType.determineType(command);
 
                 if(commandType == CacheCommandType.REPEAT) {
 
@@ -115,12 +116,12 @@ public class CacheTraceValidator extends BasicValidator {
             }
         }
 
-        List<String> body = trace.getBody();
+        final List<String> body = trace.getBody();
         super.requireNotNull(body, "trace.body");
 
         for(int i = 0; i < body.size(); i++) {
 
-            String command = body.get(i);
+            final String command = body.get(i);
 
             super.requireNotBlank(command, "trace.body" + "[" + i + "]");
             this.validateCommandSyntax(CacheCommandType.determineType(command), command);
@@ -128,7 +129,7 @@ public class CacheTraceValidator extends BasicValidator {
     }
 
     ///..
-    private void validateCommandSyntax(CacheCommandType commandType, String command) throws IllegalArgumentException {
+    private void validateCommandSyntax(final CacheCommandType commandType, final String command) throws IllegalArgumentException {
 
         switch(commandType) {
 
@@ -136,18 +137,18 @@ public class CacheTraceValidator extends BasicValidator {
 
                 if(!rwpPattern.matcher(command).matches()) {
 
-                    throw super.fail("CacheTraceValidator.validateCommandSyntax -> Malformed READ, WRITE or PREFETCH command", command);
+                    throw super.fail("Malformed READ, WRITE or PREFETCH command", command);
                 }
                 
             break;
 
             case REPEAT:
 
-                String[] splits = command.substring(1).split("#");
+                final String[] splits = command.substring(1).split("#");
 
                 if(splits.length != 2 || !digitsPattern.matcher(splits[0]).matches() || splits[1].isBlank()) {
 
-                    throw super.fail("CacheTraceValidator.validateCommandSyntax -> Malformed REPEAT command", command);
+                    throw super.fail("Malformed REPEAT command", command);
                 }
 
             break;
@@ -156,7 +157,7 @@ public class CacheTraceValidator extends BasicValidator {
 
                 if(command.length() > 1 && !digitsPattern.matcher(command.substring(1)).matches()) {
 
-                    throw super.fail("CacheTraceValidator.validateCommandSyntax -> Malformed NOOP command", command);
+                    throw super.fail("Malformed NOOP command", command);
                 }
 
             break;
@@ -165,7 +166,7 @@ public class CacheTraceValidator extends BasicValidator {
 
                 if(command.length() != 1) {
 
-                    throw super.fail("CacheTraceValidator.validateCommandSyntax -> Malformed FLUSH command", command);
+                    throw super.fail("Malformed FLUSH command", command);
                 }
 
             break;
@@ -174,7 +175,7 @@ public class CacheTraceValidator extends BasicValidator {
 
                 if(!invalidatePattern.matcher(command).matches()) {
 
-                    throw super.fail("CacheTraceValidator.validateCommandSyntax -> Malformed INVALIDATE command", command);
+                    throw super.fail("Malformed INVALIDATE command", command);
                 }
 
             break;

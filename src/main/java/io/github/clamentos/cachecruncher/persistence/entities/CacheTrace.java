@@ -16,7 +16,7 @@ public final class CacheTrace {
     ///
     private long id;
     private long createdAt;
-    private long updatedAt;
+    private Long updatedAt;
     private String description;
     private String name;
     private String data;

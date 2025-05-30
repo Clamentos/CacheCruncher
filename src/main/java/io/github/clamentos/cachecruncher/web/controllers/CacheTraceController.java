@@ -43,14 +43,15 @@ public class CacheTraceController {
 
     ///
     @Autowired
-    public CacheTraceController(CacheTraceService cacheTraceService) {
+    public CacheTraceController(final CacheTraceService cacheTraceService) {
 
         this.cacheTraceService = cacheTraceService;
     }
 
     ///
     @PostMapping(consumes = "application/json")
-    public ResponseEntity<Void> create(@RequestBody CacheTraceDto cacheTraceDto) throws DataAccessException, IllegalArgumentException {
+    public ResponseEntity<Void> create(@RequestBody final CacheTraceDto cacheTraceDto)
+    throws DataAccessException, IllegalArgumentException {
 
         cacheTraceService.create(cacheTraceDto);
         return ResponseEntity.ok().build();
@@ -58,7 +59,7 @@ public class CacheTraceController {
 
     ///..
     @GetMapping(produces = "application/json")
-    public ResponseEntity<CacheTraceDto> getById(@RequestParam long traceId) throws DataAccessException, EntityNotFoundException {
+    public ResponseEntity<CacheTraceDto> getById(@RequestParam final long traceId) throws DataAccessException, EntityNotFoundException {
 
         return ResponseEntity.ok(cacheTraceService.getById(traceId));
     }
@@ -67,11 +68,11 @@ public class CacheTraceController {
     @GetMapping(path = "/search", produces = "application/json")
     public ResponseEntity<List<CacheTraceDto>> getMinimalByNameLikeAndDates(
 
-        @RequestParam String name,
-        @RequestParam long createdAtStart,
-        @RequestParam long createdAtEnd,
-        @RequestParam long updatedAtStart,
-        @RequestParam long updatedAtEnd
+        @RequestParam final String name,
+        @RequestParam final long createdAtStart,
+        @RequestParam final long createdAtEnd,
+        @RequestParam(required = false) final Long updatedAtStart,
+        @RequestParam(required = false) final Long updatedAtEnd
 
     ) throws DataAccessException {
 
@@ -87,7 +88,7 @@ public class CacheTraceController {
 
     ///..
     @PatchMapping(consumes = "application/json")
-    public ResponseEntity<Void> update(@RequestBody CacheTraceDto cacheTraceDto)
+    public ResponseEntity<Void> update(@RequestBody final CacheTraceDto cacheTraceDto)
     throws DataAccessException, EntityNotFoundException, IllegalArgumentException {
 
         cacheTraceService.update(cacheTraceDto);
@@ -96,7 +97,7 @@ public class CacheTraceController {
 
     ///..
     @DeleteMapping
-    public ResponseEntity<Void> deleteById(@RequestParam long traceId) throws DataAccessException, EntityNotFoundException {
+    public ResponseEntity<Void> deleteById(@RequestParam final long traceId) throws DataAccessException, EntityNotFoundException {
 
         cacheTraceService.delete(traceId);
         return ResponseEntity.ok().build();

@@ -23,14 +23,14 @@ public abstract class Dao {
     private final int batchSize;
 
     ///
-    protected Dao(JdbcTemplate jdbcTemplate, Environment environment) {
+    protected Dao(final JdbcTemplate jdbcTemplate, final Environment environment) {
 
         this.jdbcTemplate = jdbcTemplate;
         batchSize = environment.getProperty("cache-cruncher.jdbc.batchSize", Integer.class, 64);
     }
 
     ///
-    protected int deleteWhereIdEquals(String tableName, long id) throws DataAccessException {
+    protected int deleteWhereIdEquals(final String tableName, final long id) throws DataAccessException {
 
         return jdbcTemplate.update(
 

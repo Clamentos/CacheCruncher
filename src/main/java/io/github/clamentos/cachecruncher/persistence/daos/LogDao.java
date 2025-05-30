@@ -52,14 +52,14 @@ public class LogDao extends Dao {
 
     ///
     @Autowired
-    public LogDao(JdbcTemplate jdbcTemplate, Environment environment) {
+    public LogDao(final JdbcTemplate jdbcTemplate, final Environment environment) {
 
         super(jdbcTemplate, environment);
     }
 
     ///
     @Transactional
-    public void insert(Collection<Log> logs) throws DataAccessException {
+    public void insert(final Collection<Log> logs) throws DataAccessException {
 
         if(!logs.isEmpty()) {
 
@@ -77,14 +77,14 @@ public class LogDao extends Dao {
     ///..
     public List<Log> selectLogsByFilter(
 
-        long createdAtStart,
-        long createdAtEnd,
-        Set<LogLevel> levels,
-        String threadLike,
-        String loggerLike,
-        String messageLike,
-        long lastTimestamp,
-        int count
+        final long createdAtStart,
+        final long createdAtEnd,
+        final Set<LogLevel> levels,
+        final String threadLike,
+        final String loggerLike,
+        final String messageLike,
+        final long lastTimestamp,
+        final int count
 
     ) throws DataAccessException, NullPointerException {
 
@@ -127,7 +127,7 @@ public class LogDao extends Dao {
 
         return super.getJdbcTemplate().query(COUNT_SQL, resultSet -> {
 
-            Map<LogLevel, Long> logs = new EnumMap<>(LogLevel.class);
+            final Map<LogLevel, Long> logs = new EnumMap<>(LogLevel.class);
 
             while(resultSet.next()) {
 
@@ -138,21 +138,21 @@ public class LogDao extends Dao {
                 );
             }
 
-            return(logs);
+            return logs;
         });
     }
 
     ///..
     @Transactional
-    public int delete(long createdAtStart, long createdAtEnd) throws DataAccessException {
+    public int delete(final long createdAtStart, final long createdAtEnd) throws DataAccessException {
 
         return super.getJdbcTemplate().update(DELETE_SQL, createdAtStart, createdAtEnd);
     }
 
     ///.
-    private List<Log> mapResultSet(ResultSet resultSet) throws SQLException {
+    private List<Log> mapResultSet(final ResultSet resultSet) throws SQLException {
 
-        List<Log> logs = new ArrayList<>();
+        final List<Log> logs = new ArrayList<>();
 
         while(resultSet.next()) {
 

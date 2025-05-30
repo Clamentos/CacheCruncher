@@ -1,7 +1,6 @@
 package io.github.clamentos.cachecruncher.web.dtos.status;
 
 ///
-import java.util.List;
 import java.util.Map;
 
 ///.
@@ -20,7 +19,7 @@ public final class ResponsesInfo {
 
     ///
     private final Map<String, Integer> uriIdMap;
-    private final Map<Integer, Map<Integer, Map<HttpStatus, List<Map<String, Integer>>>>> metrics;
+    private final Map<Integer, Map<Integer, Map<HttpStatus, Map<String, Integer>>>> metrics;
 
     ///
 }

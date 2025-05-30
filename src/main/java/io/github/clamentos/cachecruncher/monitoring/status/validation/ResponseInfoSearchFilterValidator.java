@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
 public class ResponseInfoSearchFilterValidator extends BasicValidator {
 
     ///
-    public void validate(ResponseInfoSearchFilter searchFilter) throws IllegalArgumentException {
+    public void validate(final ResponseInfoSearchFilter searchFilter) throws IllegalArgumentException {
 
         super.requireNotNull(searchFilter, "DTO");
 

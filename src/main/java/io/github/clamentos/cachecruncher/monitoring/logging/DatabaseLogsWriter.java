@@ -4,6 +4,9 @@ package io.github.clamentos.cachecruncher.monitoring.logging;
 import io.github.clamentos.cachecruncher.persistence.entities.Log;
 
 ///..
+import io.github.clamentos.cachecruncher.utility.MutableInt;
+
+///..
 import io.github.clamentos.cachecruncher.persistence.daos.LogDao;
 
 ///.
@@ -65,9 +68,12 @@ public class DatabaseLogsWriter {
     private final String logsPath;
     private final int batchSize;
 
+    ///..
+    private final ZoneId zoneId;
+
     ///
     @Autowired
-    public DatabaseLogsWriter(LogDao logDao, Environment environment) {
+    public DatabaseLogsWriter(final LogDao logDao, final Environment environment) {
 
         this.logDao = logDao;
 
@@ -76,6 +82,8 @@ public class DatabaseLogsWriter {
 
         logsPath = environment.getProperty("cache-cruncher.logsPath", String.class);
         batchSize = environment.getProperty("cache-cruncher.jdbc.batchSize", Integer.class, 64);
+
+        zoneId = ZoneId.systemDefault();
     }
 
     ///
@@ -96,12 +104,12 @@ public class DatabaseLogsWriter {
             log.warn("Interrupted, ignoring...");
         }
 
-        int[] totalLogsWritten = new int[]{0}; // Used as an "indirect" integer, otherwise lambda complains.
+        final MutableInt totalLogsWritten = new MutableInt();
         int totalFilesCleaned = 0;
 
         try {
 
-            List<Path> paths = Files
+            final List<Path> paths = Files
 
                 .list(Paths.get(logsPath))
                 .filter(path -> !Files.isDirectory(path))
@@ -110,14 +118,14 @@ public class DatabaseLogsWriter {
                 .toList()
             ;
 
-            for(Path path : paths) {
+            for(final Path path : paths) {
 
-                List<String> lines = new ArrayList<>(batchSize);
+                final List<String> lines = new ArrayList<>(batchSize);
 
                 Files.lines(path).forEach(line -> {
 
                     lines.add(line);
-                    totalLogsWritten[0]++;
+                    totalLogsWritten.incrementAndGet(1);
 
                     if(lines.size() == batchSize) {
 
@@ -136,26 +144,26 @@ public class DatabaseLogsWriter {
             }
         }
 
-        catch(IOException | RuntimeException exc) {
+        catch(final IOException | RuntimeException exc) {
 
             log.error("Could not process files, will abort the job", exc);
         }
 
-        log.info("Logs dumping task completed, {} logs written over {} files", totalLogsWritten[0], totalFilesCleaned);
+        log.info("Logs dumping task completed, {} logs written over {} files", totalLogsWritten.getValue(), totalFilesCleaned);
     }
 
     ///.
-    private void write(Collection<String> lines) throws DataAccessException, NullPointerException, NumberFormatException {
+    private void write(final Collection<String> lines) throws DataAccessException, NullPointerException, NumberFormatException {
 
-        List<Log> logs = new ArrayList<>(lines.size());
+        final List<Log> logs = new ArrayList<>(lines.size());
 
-        for(String line : lines) {
+        for(final String line : lines) {
 
-            String[] sections = pattern.split(line); // section[0] is the initial '|' and can be discarded.
-            long timestamp = LocalDateTime.parse(sections[1], formatter).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-            LogLevel logLevel = LogLevel.valueOf(sections[2].trim());
+            final String[] sections = pattern.split(line); // section[0] is the initial '|' and can be discarded.
+            final long timestamp = LocalDateTime.parse(sections[1], formatter).atZone(zoneId).toInstant().toEpochMilli();
+            final LogLevel logLevel = LogLevel.valueOf(sections[2].trim());
 
-            logs.add(new Log(-1, timestamp, sections[3], sections[4], sections[5], logLevel));
+            logs.add(new Log(-1L, timestamp, sections[3], sections[4], sections[5], logLevel));
         }
 
         logDao.insert(logs);

@@ -10,18 +10,18 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.4.5</version>
+		<version>3.5.0</version>
 		<relativePath/>
 	</parent>
 
 	<groupId>io.github.clamentos</groupId>
 	<artifactId>cachecruncher</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.0.1</version>
 	<name>Cache Cruncher</name>
 	<description>Web-based CPU cache simulator</description>
 
 	<properties>
-		<java.version>22</java.version>
+		<java.version>24</java.version>
 	</properties>
 
 	<dependencies>
@@ -29,11 +29,26 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.logging.log4j</groupId>
+					<artifactId>log4j-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.logging.log4j</groupId>
+					<artifactId>log4j-to-slf4j</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-jdbc</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
 
 		<dependency>
@@ -97,6 +112,16 @@
 							<artifactId>lombok</artifactId>
 						</exclude>
 					</excludes>
+					<jvmArguments>
+						-Xverify:none
+						-XX:+UseG1GC
+						-XX:+UseStringDeduplication
+						-XX:-FlightRecorder
+						-XX:+AlwaysPreTouch
+						-XX:+UseTransparentHugePages
+						-XX:+UnlockExperimentalVMOptions
+						-XX:+UseCompactObjectHeaders
+					</jvmArguments>
 				</configuration>
 			</plugin>
 

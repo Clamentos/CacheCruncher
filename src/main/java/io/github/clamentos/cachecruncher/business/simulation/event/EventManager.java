@@ -30,17 +30,17 @@ public final class EventManager {
     }
 
     ///
-    public void addEvent(long atCycle, Supplier<Long> event) {
+    public void addEvent(final long atCycle, final Supplier<Long> event) {
 
         events.computeIfAbsent(atCycle, _ -> new LinkedList<>()).add(event);
     }
 
     ///..
-    public long advance(long cycles) {
+    public long advance(final long cycles) {
 
         long cycleCounter = 0;
         long remainingCycles = cycles;
-        long stopAt = currentCycle + cycles;
+        final long stopAt = currentCycle + cycles;
 
         while(cycleCounter < cycles) {
 
@@ -83,7 +83,7 @@ public final class EventManager {
     }
 
     ///.
-    private long increment(long amount) {
+    private long increment(final long amount) {
 
         currentCycle += amount;
         return amount;

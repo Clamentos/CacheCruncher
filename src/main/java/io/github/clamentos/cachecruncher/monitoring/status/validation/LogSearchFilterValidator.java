@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
 public class LogSearchFilterValidator extends BasicValidator {
 
     ///
-    public void validate(LogSearchFilter searchFilter) throws IllegalArgumentException {
+    public void validate(final LogSearchFilter searchFilter) throws IllegalArgumentException {
 
         super.requireNotNull(searchFilter, "DTO");
 

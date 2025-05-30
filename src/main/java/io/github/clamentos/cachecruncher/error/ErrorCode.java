@@ -22,14 +22,17 @@ public enum ErrorCode {
 
     CACHE_TRACE_NOT_FOUND("The trace with id ? does not exist"),
 
-    TOO_MANY_USERS("Could not create session, too many logged users (?)"),
     USER_ALREADY_EXISTS("User ? already exists"),
     USER_NOT_FOUND("User ? does not exist"),
+    USER_NOT_VALIDATED("User ? hasn't validated the email yet"),
+    USER_ALREADY_VALIDATED("User ? has already validated the email"),
     USER_LOCKED("User is locked until ? because of too many failed login attempts (?)"),
 
+    TOO_MANY_OVERALL_SESSIONS("Could not create session, too many sessions (?)"),
     TOO_MANY_SESSIONS("Could not create session, user has too many (?)"),
     SESSION_NOT_FOUND("Session does not exist"),
     EXPIRED_SESSION("Session expired (?)"),
+    INVALID_VERIFICATION_TOKEN("Invalid verification token"),
 
     INVALID_AUTH_HEADER("Bad or missing auth header"),
     NOT_ENOUGH_PRIVILEGES("?"),

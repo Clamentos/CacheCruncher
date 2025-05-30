@@ -7,7 +7,7 @@ import io.github.clamentos.cachecruncher.error.ErrorDetails;
 public class AuthenticationException extends SecurityException {
 
     ///
-    public AuthenticationException(ErrorDetails errorDetails) {
+    public AuthenticationException(final ErrorDetails errorDetails) {
 
         super(errorDetails);
     }

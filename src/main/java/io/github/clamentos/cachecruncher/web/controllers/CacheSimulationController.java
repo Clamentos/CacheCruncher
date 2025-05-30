@@ -35,7 +35,7 @@ public class CacheSimulationController {
 
     ///
     @Autowired
-    public CacheSimulationController(CacheTraceService cacheTraceService) {
+    public CacheSimulationController(final CacheTraceService cacheTraceService) {
 
         this.cacheTraceService = cacheTraceService;
     }
@@ -44,11 +44,11 @@ public class CacheSimulationController {
     @GetMapping(consumes = "application/json", produces = "application/json")
     public ResponseEntity<SimulationSummaryReport<CacheSimulationRootReportDto>> simulate(
 
-        @RequestBody CacheSimulationArgumentsDto cacheSimulationArgumentsDto
+        @RequestBody final CacheSimulationArgumentsDto cacheSimulationArgumentsDto
 
     ) throws IllegalArgumentException {
 
-        SimulationSummaryReport<CacheSimulationRootReportDto> result = cacheTraceService.simulate(cacheSimulationArgumentsDto);
+        final SimulationSummaryReport<CacheSimulationRootReportDto> result = cacheTraceService.simulate(cacheSimulationArgumentsDto);
         return ResponseEntity.status(result.isFailed() ? HttpStatus.PARTIAL_CONTENT : HttpStatus.OK).body(result);
     }
 

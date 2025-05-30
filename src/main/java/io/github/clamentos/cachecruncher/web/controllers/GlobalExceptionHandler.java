@@ -42,6 +42,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 
 ///..
+import org.springframework.mail.MailException;
+
+///..
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
@@ -61,21 +64,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     ///
     @ExceptionHandler(value = AuthenticationException.class)
-    protected ResponseEntity<ProblemDetail> handleAuthenticationException(AuthenticationException exc, WebRequest request) {
+    protected ResponseEntity<ProblemDetail> handleAuthenticationException(final AuthenticationException exc, final WebRequest request) {
 
         return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.UNAUTHORIZED);
     }
 
     ///..
     @ExceptionHandler(value = AuthorizationException.class)
-    protected ResponseEntity<ProblemDetail> handleAuthorizationException(AuthorizationException exc, WebRequest request) {
+    protected ResponseEntity<ProblemDetail> handleAuthorizationException(final AuthorizationException exc, final WebRequest request) {
 
         return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.FORBIDDEN);
     }
 
     ///..
     @ExceptionHandler(value = DataAccessException.class)
-    protected ResponseEntity<ProblemDetail> handleDataAccessException(DataAccessException exc, WebRequest request) {
+    protected ResponseEntity<ProblemDetail> handleDataAccessException(final DataAccessException exc, final WebRequest request) {
 
         log.error("{}: {}", exc.getClass().getSimpleName(), exc.getMessage());
         return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.UNPROCESSABLE_ENTITY);
@@ -83,14 +86,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     ///..
     @ExceptionHandler(value = EntityAlreadyExistsException.class)
-    protected ResponseEntity<ProblemDetail> handleEntityAlreadyExistsException(EntityAlreadyExistsException exc, WebRequest request) {
+    protected ResponseEntity<ProblemDetail> handleEntityAlreadyExistsException(
+
+        final EntityAlreadyExistsException exc,
+        final WebRequest request
+    ) {
 
         return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.CONFLICT);
     }
 
     ///..
     @ExceptionHandler(value = EntityNotFoundException.class)
-    protected ResponseEntity<ProblemDetail> handleEntityNotFoundException(EntityNotFoundException exc, WebRequest request) {
+    protected ResponseEntity<ProblemDetail> handleEntityNotFoundException(final EntityNotFoundException exc, final WebRequest request) {
 
         return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.NOT_FOUND);
     }
@@ -98,14 +105,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     ///..
     @Override
     protected ResponseEntity<Object> handleHttpMessageNotReadable(
-        
-        HttpMessageNotReadableException exc,
-        HttpHeaders headers,
-        HttpStatusCode status,
-        WebRequest request
+
+        final HttpMessageNotReadableException exc,
+        final HttpHeaders headers,
+        final HttpStatusCode status,
+        final WebRequest request
     ) {
 
-        Throwable cause = exc.getCause();
+        final Throwable cause = exc.getCause();
 
         if(cause != null) {
 
@@ -121,7 +128,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
             if(cause instanceof ValueInstantiationException value) {
 
-                Throwable exception = value.getCause();
+                final Throwable exception = value.getCause();
 
                 if(exception != null && (exception.getCause() instanceof ErrorDetails details)) {
 
@@ -135,28 +142,49 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     ///..
     @ExceptionHandler(value = IllegalArgumentException.class)
-    protected ResponseEntity<ProblemDetail> handleIllegalArgumentException(IllegalArgumentException exc, WebRequest request) {
+    protected ResponseEntity<ProblemDetail> handleIllegalArgumentException(
+
+        final IllegalArgumentException exc,
+        final WebRequest request
+    ) {
 
         return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.BAD_REQUEST);
     }
 
+    ///..
+    @ExceptionHandler(value = MailException.class)
+    protected ResponseEntity<ProblemDetail> handleMailException(final MailException exc, final WebRequest request) {
+
+        return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
     ///.
-    private ResponseEntity<ProblemDetail> constructErrorFromExceptionMessage(Throwable exc, WebRequest request, HttpStatus status) {
+    private ResponseEntity<ProblemDetail> constructErrorFromExceptionMessage(
+
+        final Throwable exc,
+        final WebRequest request,
+        final HttpStatus status
+    ) {
 
         return ResponseEntity.status(status).body(this.constructPayload(exc, request, status));
     }
 
     ///..
-    private ResponseEntity<Object> constructErrorFromExceptionMessageObj(Throwable exc, WebRequest request, HttpStatus status) {
+    private ResponseEntity<Object> constructErrorFromExceptionMessageObj(
+
+        final Throwable exc,
+        final WebRequest request,
+        final HttpStatus status
+    ) {
 
         return ResponseEntity.status(status).body(this.constructPayload(exc, request, status));
     }
 
     ///..
-    private ProblemDetail constructPayload(Throwable exc, WebRequest request, HttpStatus status) {
+    private ProblemDetail constructPayload(final Throwable exc, final WebRequest request, final HttpStatus status) {
 
         ErrorCode errorCode = ErrorCode.getDefault();
-        List<String> arguments = new ArrayList<>();
+        final List<String> arguments = new ArrayList<>();
 
         if(exc instanceof ErrorDetails details) {
 
@@ -173,7 +201,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             }
         }
 
-        ProblemDetail payload = ProblemDetail.forStatus(status);    // 403
+        final ProblemDetail payload = ProblemDetail.forStatus(status);    // 403
 
         payload.setType(URI.create(errorCode.toString()));          // "NOT_ENOUGH_PRIVILEGES"
         payload.setTitle(status.getReasonPhrase());                 // "Forbidden"
@@ -187,9 +215,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     ///..
-    private ErrorCode fillArguments(ErrorDetails details, List<String> arguments) {
+    private ErrorCode fillArguments(final ErrorDetails details, final List<String> arguments) {
 
-        Serializable[] detailArguments = details.getArguments();
+        final Serializable[] detailArguments = details.getArguments();
 
         if(detailArguments != null) {
 

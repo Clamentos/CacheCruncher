@@ -21,10 +21,10 @@ public final class ResponseInfoSearchFilter extends PageableSearch {
     @JsonCreator
     public ResponseInfoSearchFilter(
 
-        @JsonProperty("lastTimestamp") Long lastTimestamp,
-        @JsonProperty("count") Integer count,
-        @JsonProperty("createdAtStart") Long createdAtStart,
-        @JsonProperty("createdAtEnd") Long createdAtEnd
+        @JsonProperty("lastTimestamp") final Long lastTimestamp,
+        @JsonProperty("count") final Integer count,
+        @JsonProperty("createdAtStart") final Long createdAtStart,
+        @JsonProperty("createdAtEnd") final Long createdAtEnd
     ) {
 
         super(lastTimestamp, count);

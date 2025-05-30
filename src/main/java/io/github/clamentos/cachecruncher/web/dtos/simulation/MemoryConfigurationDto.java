@@ -33,7 +33,7 @@ public sealed class MemoryConfigurationDto extends DepthLimitedDto permits Cache
 
     ///
     @JsonCreator
-    public MemoryConfigurationDto(@JsonProperty("accessTime") Long accessTime) {
+    public MemoryConfigurationDto(@JsonProperty("accessTime") final Long accessTime) {
 
         super(MemoryConfigurationDto.class, 8);
         this.accessTime = accessTime;

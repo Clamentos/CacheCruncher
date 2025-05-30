@@ -31,6 +31,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 ///..
+import org.springframework.mail.MailException;
+
+///..
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -53,17 +56,25 @@ public class UserController {
 
     ///
     @Autowired
-    public UserController(UserService userService) {
+    public UserController(final UserService userService) {
 
         this.userService = userService;
     }
 
     ///
-    @PostMapping(path = "/register")
-    public ResponseEntity<Void> register(@RequestParam String email, @RequestParam String password)
-    throws DataAccessException, EntityAlreadyExistsException, IllegalArgumentException {
+    @PostMapping(path = "/register", produces = "text/plain")
+    public ResponseEntity<String> register(@RequestParam final String email, @RequestParam final String password)
+    throws DataAccessException, EntityAlreadyExistsException, IllegalArgumentException, MailException {
 
-        userService.register(email, password);
+        return ResponseEntity.ok(userService.register(email, password));
+    }
+
+    ///..
+    @GetMapping(path = "/confirm-email")
+    public ResponseEntity<Void> confirmEmail(@RequestParam final String token)
+    throws DataAccessException, EntityNotFoundException, IllegalArgumentException, IllegalStateException {
+
+        userService.confirmEmail(token);
         return ResponseEntity.ok().build();
     }
 
@@ -71,14 +82,14 @@ public class UserController {
     @PostMapping(path = "/login", produces = "application/json")
     public ResponseEntity<Pair<User, Long>> login(
 
-        @RequestParam String email,
-        @RequestParam String password,
-        @RequestHeader(name = "User-Agent") String device
+        @RequestParam final String email,
+        @RequestParam final String password,
+        @RequestHeader(name = "User-Agent") final String device
 
     ) throws AuthenticationException, DataAccessException {
 
-        Pair<User, Session> loginResult =  userService.login(email, password, device);
-        HttpHeaders headers = new HttpHeaders();
+        final Pair<User, Session> loginResult =  userService.login(email, password, device);
+        final HttpHeaders headers = new HttpHeaders();
 
         headers.add(
 
@@ -95,7 +106,7 @@ public class UserController {
 
     ///..
     @DeleteMapping(path = "/logout")
-    public ResponseEntity<Void> logout(@RequestAttribute(name = "session") Session session)
+    public ResponseEntity<Void> logout(@RequestAttribute(name = "session") final Session session)
     throws AuthenticationException, DataAccessException {
 
         userService.logout(session);
@@ -104,7 +115,7 @@ public class UserController {
 
     ///..
     @DeleteMapping(path = "/logout-all")
-    public ResponseEntity<Void> logoutAll(@RequestAttribute(name = "session") Session session) {
+    public ResponseEntity<Void> logoutAll(@RequestAttribute(name = "session") final Session session) {
 
         userService.logoutAll(session);
         return ResponseEntity.ok().build();
@@ -119,7 +130,8 @@ public class UserController {
 
     ///..
     @PatchMapping
-    public ResponseEntity<Void> updatePrivilege(@RequestParam long userId, @RequestParam boolean admin) throws DataAccessException {
+    public ResponseEntity<Void> updatePrivilege(@RequestParam final long userId, @RequestParam final boolean admin)
+    throws DataAccessException, EntityNotFoundException {
 
         userService.updatePrivilege(userId, admin);
         return ResponseEntity.ok().build();
@@ -127,7 +139,7 @@ public class UserController {
 
     ///..
     @DeleteMapping
-    public ResponseEntity<Void> delete(@RequestParam long userId, @RequestAttribute(name = "session") Session session)
+    public ResponseEntity<Void> delete(@RequestParam final long userId, @RequestAttribute(name = "session") final Session session)
     throws AuthorizationException, DataAccessException, EntityNotFoundException {
 
         userService.delete(userId, session);

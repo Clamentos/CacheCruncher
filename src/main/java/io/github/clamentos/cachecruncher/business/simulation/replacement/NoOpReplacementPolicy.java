@@ -11,14 +11,14 @@ public final class NoOpReplacementPolicy implements ReplacementPolicy {
 
     ///
     @Override
-    public int getVictim(int index) {
+    public int getVictim(final int index) {
 
         return 0;
     }
 
     ///..
     @Override
-    public void update(int index, int way) {
+    public void update(final int index, final int way, final boolean onHit) {
 
         // This does nothing since there is no need to track victims.
     }

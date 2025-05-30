@@ -4,6 +4,7 @@ package io.github.clamentos.cachecruncher.persistence.daos;
 import io.github.clamentos.cachecruncher.persistence.entities.CacheTrace;
 
 ///.
+import java.sql.JDBCType;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
@@ -41,23 +42,25 @@ public class CacheTraceDao extends Dao {
 
     private static final String SELECT_BY_FILTER_SQL = "SELECT id,created_at,updated_at,description,name FROM cache_trace WHERE name like ? AND created_at BETWEEN ? AND ? AND updated_at BETWEEN ? AND ?";
 
+    private static final String SELECT_BY_FILTER_EXCLUDE_UPDATE_SQL = "SELECT id,created_at,updated_at,description,name FROM cache_trace WHERE name like ? AND created_at BETWEEN ? AND ?";
+
     private static final String UPDATE_SQL = "UPDATE cache_trace SET updated_at=?, description=?, name=?, data=? WHERE id=?";
 
     ///
     @Autowired
-    public CacheTraceDao(JdbcTemplate jdbcTemplate, Environment environment) {
+    public CacheTraceDao(final JdbcTemplate jdbcTemplate, final Environment environment) {
 
         super(jdbcTemplate, environment);
     }
 
     ///
     @Transactional
-    public void insert(CacheTrace cacheTrace) throws DataAccessException {
+    public void insert(final CacheTrace cacheTrace) throws DataAccessException {
 
         super.getJdbcTemplate().update(INSERT_SQL, preparedStatement -> {
 
             preparedStatement.setLong(1, cacheTrace.getCreatedAt());
-            preparedStatement.setLong(2, cacheTrace.getUpdatedAt());
+            preparedStatement.setObject(2, cacheTrace.getUpdatedAt(), JDBCType.BIGINT.getVendorTypeNumber());
             preparedStatement.setString(3, cacheTrace.getDescription());
             preparedStatement.setString(4, cacheTrace.getName());
             preparedStatement.setString(5, cacheTrace.getData());
@@ -65,7 +68,7 @@ public class CacheTraceDao extends Dao {
     }
 
     ///..
-    public CacheTrace selectById(long id) throws DataAccessException {
+    public CacheTrace selectById(final long id) throws DataAccessException {
 
         return super.getJdbcTemplate().query(
 
@@ -78,11 +81,11 @@ public class CacheTraceDao extends Dao {
     ///..
     public List<CacheTrace> selectMinimalByNameLikeAndDates(
 
-        String nameLike,
-        long createdAtStart,
-        long createdAtEnd,
-        long updatedAtStart,
-        long updatedAtEnd
+        final String nameLike,
+        final long createdAtStart,
+        final long createdAtEnd,
+        final long updatedAtStart,
+        final long updatedAtEnd
 
     ) throws DataAccessException {
 
@@ -104,12 +107,31 @@ public class CacheTraceDao extends Dao {
     }
 
     ///..
+    public List<CacheTrace> selectMinimalByNameLikeAndDate(final String nameLike, final long createdAtStart, final long createdAtEnd)
+    throws DataAccessException {
+
+        return super.getJdbcTemplate().query(
+
+            SELECT_BY_FILTER_EXCLUDE_UPDATE_SQL,
+
+            preparedStatement -> {
+
+                preparedStatement.setString(1, nameLike);
+                preparedStatement.setLong(2, createdAtStart);
+                preparedStatement.setLong(3, createdAtEnd);
+            },
+
+            this::mapResultSet
+        );
+    }
+
+    ///..
     @Transactional
-    public void update(CacheTrace cacheTrace) {
+    public void update(final CacheTrace cacheTrace) {
 
         super.getJdbcTemplate().update(UPDATE_SQL, preparedStatement -> {
 
-            preparedStatement.setLong(1, cacheTrace.getUpdatedAt());
+            preparedStatement.setObject(1, cacheTrace.getUpdatedAt(), JDBCType.BIGINT.getVendorTypeNumber());
             preparedStatement.setString(2, cacheTrace.getDescription());
             preparedStatement.setString(3, cacheTrace.getName());
             preparedStatement.setString(4, cacheTrace.getData());
@@ -119,39 +141,35 @@ public class CacheTraceDao extends Dao {
 
     ///..
     @Transactional
-    public int delete(long id) throws DataAccessException {
+    public int delete(final long id) throws DataAccessException {
 
         return super.deleteWhereIdEquals("cache_trace", id);
     }
 
     ///.
-    private CacheTrace mapResultSetSingle(ResultSet resultSet) throws SQLException {
+    private CacheTrace mapResultSetSingle(final ResultSet resultSet) throws SQLException {
 
-        if(resultSet.next()) return constructFromResultSet(resultSet, true);
+        if(resultSet.next()) return this.constructFromResultSet(resultSet, true);
         return null;
     }
 
     ///..
-    private List<CacheTrace> mapResultSet(ResultSet resultSet) throws SQLException {
+    private List<CacheTrace> mapResultSet(final ResultSet resultSet) throws SQLException {
 
-        List<CacheTrace> cacheTraces = new ArrayList<>();
-
-        while(resultSet.next()) {
-
-            cacheTraces.add(constructFromResultSet(resultSet, false));
-        }
+        final List<CacheTrace> cacheTraces = new ArrayList<>();
+        while(resultSet.next()) cacheTraces.add(this.constructFromResultSet(resultSet, false));
 
         return cacheTraces;
     }
 
     ///..
-    private CacheTrace constructFromResultSet(ResultSet resultSet, boolean full) throws SQLException {
+    private CacheTrace constructFromResultSet(final ResultSet resultSet, final boolean full) throws SQLException {
 
         return new CacheTrace(
 
             resultSet.getLong(1),
             resultSet.getLong(2),
-            resultSet.getLong(3),
+            (Long)resultSet.getObject(3),
             resultSet.getString(4),
             resultSet.getString(5),
             full ? resultSet.getString(6) : null

@@ -14,8 +14,8 @@ public interface Memory extends Simulatable {
     MemorySimulationReportDto getMemorySimulationReportDto();
 
     ///..
-    long read(long address);
-    long write(long address);
+    long read(final long address);
+    long write(final long address);
 
     ///
 }

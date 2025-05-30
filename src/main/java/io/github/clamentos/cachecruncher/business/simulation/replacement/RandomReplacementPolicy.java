@@ -16,7 +16,7 @@ public final class RandomReplacementPolicy implements ReplacementPolicy {
     private final int rngUpperBound;
 
     ///
-    public RandomReplacementPolicy(int associativity) {
+    public RandomReplacementPolicy(final int associativity) {
 
         rng = new Random();
         this.rngUpperBound = associativity - 1;
@@ -24,14 +24,14 @@ public final class RandomReplacementPolicy implements ReplacementPolicy {
 
     ///
     @Override
-    public int getVictim(int index) {
+    public int getVictim(final int index) {
 
         return rng.nextInt(0, rngUpperBound);
     }
 
     ///..
     @Override
-    public void update(int index, int way) {
+    public void update(final int index, final int way, final boolean onHit) {
 
         // This does nothing since there is no need to track victims.
     }

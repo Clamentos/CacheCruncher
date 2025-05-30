@@ -27,27 +27,26 @@ public class SimulationArgumentsValidator extends BasicValidator {
     private static final String REPLACEMENT_POLICY_TYPE_FIELD = ".replacementPolicyType";
 
     ///
-    public void validate(CacheSimulationArgumentsDto simulationArgumentsDto) throws IllegalArgumentException {
+    public void validate(final CacheSimulationArgumentsDto simulationArgumentsDto) throws IllegalArgumentException {
 
         super.requireNotNull(simulationArgumentsDto, "DTO");
+        final Set<Long> traceIds = simulationArgumentsDto.getTraceIds();
 
-        Set<Long> traceIds = simulationArgumentsDto.getTraceIds();
         super.requireNotNullAll(traceIds, "traceIds");
         super.requireBetween(traceIds.size(), 1, 8, "traceIds");
-
         super.requireNotNullAll(simulationArgumentsDto.getSimulationFlags(), "simulationFlags");
-
         this.validateConfigurations(simulationArgumentsDto.getCacheConfigurations());
     }
 
     ///..
-    private void validateConfigurations(Set<CacheConfigurationDto> cacheConfigurations) throws IllegalArgumentException {
+    private void validateConfigurations(final Set<CacheConfigurationDto> cacheConfigurations) throws IllegalArgumentException {
 
         int i = 0;
+
         super.requireNotEmpty(cacheConfigurations, "cacheConfigurations");
         super.requireBetween(cacheConfigurations.size(), 1, 8, "cacheConfigurations");
 
-        for(CacheConfigurationDto cacheConfiguration : cacheConfigurations) {
+        for(final CacheConfigurationDto cacheConfiguration : cacheConfigurations) {
 
             this.validateConfiguration(cacheConfiguration, "cacheConfigurations[" + i + "]");
             i++;
@@ -55,7 +54,8 @@ public class SimulationArgumentsValidator extends BasicValidator {
     }
 
     ///..
-    private void validateConfiguration(MemoryConfigurationDto memoryConfiguration, String prefix) throws IllegalArgumentException {
+    private void validateConfiguration(final MemoryConfigurationDto memoryConfiguration, final String prefix)
+    throws IllegalArgumentException {
 
         super.requireNotNull(memoryConfiguration, prefix);
 
@@ -66,8 +66,8 @@ public class SimulationArgumentsValidator extends BasicValidator {
             super.requireBetween(cacheConfiguration.getNumSetsExp(), 0, 16, prefix + ".numSetsExp");
             super.requireBetween(cacheConfiguration.getLineSizeExp(), 0, 63, prefix + ".lineSizeExp");
 
-            Integer associativity = cacheConfiguration.getAssociativity();
-            ReplacementPolicyType replacementPolicyType = cacheConfiguration.getReplacementPolicyType();
+            final Integer associativity = cacheConfiguration.getAssociativity();
+            final ReplacementPolicyType replacementPolicyType = cacheConfiguration.getReplacementPolicyType();
             super.requireBetween(associativity, 1, 65536, prefix + ".associativity");
 
             if(associativity > 1) {
@@ -76,11 +76,7 @@ public class SimulationArgumentsValidator extends BasicValidator {
 
                 if(replacementPolicyType == ReplacementPolicyType.NOOP) {
 
-                    throw super.fail(
-
-                        "SimulationArgumentsValidator.validateConfiguration -> Replacement policy type cannot be NOOP",
-                        prefix + REPLACEMENT_POLICY_TYPE_FIELD
-                    );
+                    throw super.fail("Replacement policy type cannot be NOOP", prefix + REPLACEMENT_POLICY_TYPE_FIELD);
                 }
             }
 
@@ -88,11 +84,7 @@ public class SimulationArgumentsValidator extends BasicValidator {
 
                 if(replacementPolicyType != null && replacementPolicyType != ReplacementPolicyType.NOOP) {
 
-                    throw super.fail(
-
-                        "SimulationArgumentsValidator.validateConfiguration -> Replacement policy must be NOOP",
-                        prefix + REPLACEMENT_POLICY_TYPE_FIELD
-                    );
+                    throw super.fail("Replacement policy must be NOOP", prefix + REPLACEMENT_POLICY_TYPE_FIELD);
                 }
             }
 

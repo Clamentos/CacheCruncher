@@ -45,14 +45,14 @@ public class MetricDao extends Dao {
 
     ///
     @Autowired
-    public MetricDao(JdbcTemplate jdbcTemplate, Environment environment) {
+    public MetricDao(final JdbcTemplate jdbcTemplate, final Environment environment) {
 
         super(jdbcTemplate, environment);
     }
 
     ///
     @Transactional
-    public void insert(Collection<Metric> metrics) throws DataAccessException {
+    public void insert(final Collection<Metric> metrics) throws DataAccessException {
 
         if(!metrics.isEmpty()) {
 
@@ -68,8 +68,14 @@ public class MetricDao extends Dao {
     }
 
     ///..
-    public List<Metric> selectMetricsByFilter(Long createdAtStart, Long createdAtEnd, long lastTimestamp, int count)
-    throws DataAccessException {
+    public List<Metric> selectMetricsByFilter(
+        
+        final Long createdAtStart,
+        final Long createdAtEnd,
+        final long lastTimestamp,
+        final int count
+
+    ) throws DataAccessException {
 
         return super.getJdbcTemplate().query(
 
@@ -89,15 +95,15 @@ public class MetricDao extends Dao {
 
     ///..
     @Transactional
-    public int delete(long createdAtStart, long createdAtEnd) throws DataAccessException {
+    public int delete(final long createdAtStart, final long createdAtEnd) throws DataAccessException {
 
         return super.getJdbcTemplate().update(DELETE_SQL, createdAtStart, createdAtEnd);
     }
 
     ///.
-    private List<Metric> mapResultSet(ResultSet resultSet) throws SQLException {
+    private List<Metric> mapResultSet(final ResultSet resultSet) throws SQLException {
 
-        List<Metric> metrics = new ArrayList<>();
+        final List<Metric> metrics = new ArrayList<>();
 
         while(resultSet.next()) {
 

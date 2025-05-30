@@ -68,89 +68,90 @@ public class SessionService {
     ///..
     private final Map<String, Session> sessions;
     private final Map<Long, AtomicInteger> userSessionCounters;
-    private final AtomicInteger totalLoggedUsersCounter;
+    private final AtomicInteger sessionsCounter;
 
     ///..
     private final long sessionDuration;
     private final long sessionExpirationMargin;
     private final int sessionIdLength;
     private final int maxSessionsPerUser;
-    private final int maxTotalLoggedUsers;
+    private final int maxTotalSessions;
 
     ///
     @Autowired
-    public SessionService(SessionDao sessionDao, Environment environment) {
+    public SessionService(final SessionDao sessionDao, final Environment environment) {
 
         this.sessionDao = sessionDao;
 
         secureRandom = new SecureRandom();
         sessions = new ConcurrentHashMap<>();
         userSessionCounters = new ConcurrentHashMap<>();
-        totalLoggedUsersCounter = new AtomicInteger();
+        sessionsCounter = new AtomicInteger();
 
-        for(Session session : sessionDao.selectAll()) {
+        for(final Session session : sessionDao.selectAll()) {
 
             sessions.put(session.getId(), session);
-            AtomicInteger userSessionCount = userSessionCounters.get(session.getUserId());
-
-            if(userSessionCount != null) userSessionCount.incrementAndGet();
-            else userSessionCounters.put(session.getUserId(), new AtomicInteger(1));
-
-            totalLoggedUsersCounter.incrementAndGet();
+            userSessionCounters.computeIfAbsent(session.getUserId(), _ -> new AtomicInteger()).incrementAndGet();
+            sessionsCounter.incrementAndGet();
         }
 
-        if(sessions.size() > 0) {
-
-            log.info("Recovered {} sessions", sessions.size());
-        }
+        if(sessions.size() > 0) log.info("Recovered {} sessions", sessions.size());
 
         this.sessionDuration = environment.getProperty("cache-cruncher.auth.sessionDuration", Long.class, 3_600_000L);
         this.sessionExpirationMargin = environment.getProperty("cache-cruncher.auth.sessionExpirationMargin", Long.class, 5_000L);
         this.sessionIdLength = environment.getProperty("cache-cruncher.auth.sessionIdLength", Integer.class, 32);
         this.maxSessionsPerUser = environment.getProperty("cache-cruncher.auth.maxSessionsPerUser", Integer.class, 1);
-        this.maxTotalLoggedUsers = environment.getProperty("cache-cruncher.auth.maxTotalLoggedUsers", Integer.class, 100_000);
+        this.maxTotalSessions = environment.getProperty("cache-cruncher.auth.maxTotalSessions", Integer.class, 25_000);
     }
 
     ///
     @Transactional
-    public Session generate(long userId, String username, boolean isAdmin, String device)
+    public Session generate(final long userId, final String username, final boolean isAdmin, final String device)
     throws AuthorizationException, DataAccessException {
 
-        byte[] rawSessionId = new byte[sessionIdLength];
+        if(sessionsCounter.getAndUpdate(current -> this.updateCounter(current, maxTotalSessions)) >= maxTotalSessions) {
 
-        secureRandom.nextBytes(rawSessionId);
-        String sessionId = Base64.getEncoder().encodeToString(rawSessionId);
-        Session session = new Session(userId, System.currentTimeMillis() + sessionDuration, username, device, sessionId, isAdmin);
-
-        sessionDao.insert(session);
-
-        if(totalLoggedUsersCounter.getAndUpdate(current -> this.updateCounter(current, maxTotalLoggedUsers)) >= maxTotalLoggedUsers) {
-
-            throw new AuthorizationException(new ErrorDetails(ErrorCode.TOO_MANY_USERS, maxTotalLoggedUsers));
+            throw new AuthorizationException(new ErrorDetails(ErrorCode.TOO_MANY_OVERALL_SESSIONS, maxTotalSessions));
         }
 
-        AtomicInteger userSessionCount = userSessionCounters.computeIfAbsent(userId, _ -> new AtomicInteger());
+        final AtomicInteger userSessionCount = userSessionCounters.computeIfAbsent(userId, _ -> new AtomicInteger());
 
         if(userSessionCount.getAndUpdate(current -> this.updateCounter(current, maxSessionsPerUser)) >= maxSessionsPerUser) {
 
             throw new AuthorizationException(new ErrorDetails(ErrorCode.TOO_MANY_SESSIONS, maxSessionsPerUser));
         }
 
+        final byte[] rawSessionId = new byte[sessionIdLength];
+        secureRandom.nextBytes(rawSessionId);
+
+        final String sessionId = Base64.getEncoder().encodeToString(rawSessionId);
+        final Session session = new Session(userId, System.currentTimeMillis() + sessionDuration, username, device, sessionId, isAdmin);
+
+        try {
+
+            sessionDao.insert(session);
+        }
+
+        catch(final DataAccessException exc) {
+
+            sessionsCounter.decrementAndGet();
+            userSessionCount.decrementAndGet();
+
+            throw exc;
+        }
+
+        sessions.put(sessionId, session);
         return session;
     }
 
     ///..
-    public Session check(String sessionId, boolean requiresAdmin, String message)
+    public Session check(final String sessionId, final boolean requiresAdmin, final String message)
     throws AuthenticationException, AuthorizationException {
 
-        Session session = sessions.get(sessionId);
+        final Session session = sessions.get(sessionId);
+        if(session == null) throw new AuthorizationException(new ErrorDetails(ErrorCode.SESSION_NOT_FOUND));
 
-        if(session == null) {
-
-            throw new AuthorizationException(new ErrorDetails(ErrorCode.SESSION_NOT_FOUND));
-        }
-
-        long expiration = session.getExpiresAt() - sessionExpirationMargin;
+        final long expiration = session.getExpiresAt() - sessionExpirationMargin;
 
         if(expiration < System.currentTimeMillis()) {
 
@@ -166,43 +167,32 @@ public class SessionService {
     }
 
     ///..
-    public void remove(String sessionId) throws AuthenticationException, DataAccessException {
+    public void remove(final String sessionId) throws AuthenticationException, DataAccessException {
 
-        Session sessionToBeRemoved = sessions.get(sessionId);
-
-        if(sessionToBeRemoved == null) {
-
-            throw new AuthorizationException(new ErrorDetails(ErrorCode.SESSION_NOT_FOUND));
-        }
+        final Session sessionToBeRemoved = sessions.get(sessionId);
+        if(sessionToBeRemoved == null) throw new AuthorizationException(new ErrorDetails(ErrorCode.SESSION_NOT_FOUND));
 
         sessionDao.delete(sessionToBeRemoved.getId());
-        Session removed = sessions.remove(sessionId);
 
-        if(removed != null && userSessionCounters.get(sessionToBeRemoved.getUserId()).decrementAndGet() <= 0) {
+        final Session removed = sessions.remove(sessionId);
+        final long userId = sessionToBeRemoved.getUserId();
 
-            userSessionCounters.remove(sessionToBeRemoved.getUserId());
-        }
+        if(removed != null && userSessionCounters.get(userId).decrementAndGet() <= 0) userSessionCounters.remove(userId);
+        sessionsCounter.decrementAndGet();
     }
 
     ///..
     @Transactional
-    public void removeAll(long userId) {
+    public void removeAll(final long userId) {
 
-        for(Session session : sessions.values()) {
+        for(final Session session : sessions.values()) {
 
             if(session.getUserId() == userId) {
 
-                try {
+                try { this.remove(session.getId()); }
+                catch(final AuthenticationException _) { log.warn("Session not found"); }
 
-                    this.remove(session.getId());
-                }
-
-                catch(AuthenticationException _) {
-
-                    log.warn("Session not found");
-                }
-
-                catch(DataAccessException exc) {
+                catch(final DataAccessException exc) {
 
                     log.error(
 
@@ -216,25 +206,31 @@ public class SessionService {
     }
 
     ///..
-    public int getCurrentlyLoggedUsersCount() {
+    public int getSessionsCount() {
 
-        return totalLoggedUsersCounter.get();
+        return sessionsCounter.get();
+    }
+
+    ///..
+    public int getLoggedUsersCount() {
+
+        return userSessionCounters.size();
     }
 
     ///.
     @Scheduled(cron = "0 */5 * * * *")
-    public void removeAllExpired() {
+    protected void removeAllExpired() {
 
         log.info("Starting expired session cleaning task...");
 
-        Set<String> expiredSessionIds = new HashSet<>();
-        long now = System.currentTimeMillis();
+        final Set<String> expiredSessionIds = new HashSet<>();
+        final long now = System.currentTimeMillis();
 
         int expiredCount = 0;
         int deletedFromDbCount = 0;
         int deletedFromSessionsCount = 0;
 
-        for(Map.Entry<String, Session> session : sessions.entrySet()) {
+        for(final Map.Entry<String, Session> session : sessions.entrySet()) {
 
             if(session.getValue().getExpiresAt() < now) {
 
@@ -247,9 +243,9 @@ public class SessionService {
 
             deletedFromDbCount = sessionDao.deleteAll(expiredSessionIds);
 
-            for(String expiredSessionId : expiredSessionIds) {
+            for(final String expiredSessionId : expiredSessionIds) {
 
-                Session removedSession = sessions.remove(expiredSessionId);
+                final Session removedSession = sessions.remove(expiredSessionId);
 
                 if(removedSession != null && userSessionCounters.get(removedSession.getUserId()).decrementAndGet() <= 0) {
 
@@ -265,14 +261,14 @@ public class SessionService {
             );
         }
 
-        catch(DataAccessException exc) {
+        catch(final DataAccessException exc) {
 
             log.error("Could not complete the expired session task, {}: {}", exc.getClass().getSimpleName(), exc.getMessage());
         }
     }
 
     ///.
-    private int updateCounter(int current, int limit) {
+    private int updateCounter(final int current, final int limit) {
 
         int attempt = current + 1;
         return attempt <= limit ? attempt : current;

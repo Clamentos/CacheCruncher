@@ -34,20 +34,20 @@ public class JsonMapper {
 
     ///
     @Autowired
-    public JsonMapper(ObjectMapper objectMapper) {
+    public JsonMapper(final ObjectMapper objectMapper) {
 
         this.objectMapper = objectMapper;
     }
 
     ///
-    public String serialize(Object object) throws IllegalArgumentException {
+    public String serialize(final Object object) throws IllegalArgumentException {
 
         try {
 
             return objectMapper.writeValueAsString(object);
         }
 
-        catch(JsonProcessingException exc) {
+        catch(final JsonProcessingException exc) {
 
             log.error("Could not serialize JSON", exc);
             throw new IllegalArgumentException(new ErrorDetails(ErrorCode.SERIALIZATION_ERROR));
@@ -55,11 +55,11 @@ public class JsonMapper {
     }
 
     ///..
-    public <T> T deserialize(String object, TypeReference<T> type) throws IllegalArgumentException {
+    public <T> T deserialize(final String object, final TypeReference<T> type) throws IllegalArgumentException {
 
         if(type == null) {
 
-            String message = "Method arguments cannot be null";
+            final String message = "Method arguments cannot be null";
             log.error(message);
             throw new IllegalArgumentException(new ErrorDetails(ErrorCode.GENERIC, message));
         }
@@ -69,7 +69,7 @@ public class JsonMapper {
             return objectMapper.readValue(object, type);
         }
 
-        catch(JsonProcessingException exc) {
+        catch(final JsonProcessingException exc) {
 
             log.error("Could not deserialize JSON", exc);
             throw new IllegalArgumentException(new ErrorDetails(ErrorCode.DESERIALIZATION_ERROR));

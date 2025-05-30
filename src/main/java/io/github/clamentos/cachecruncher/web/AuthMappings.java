@@ -29,6 +29,7 @@ public class AuthMappings {
         authenticationExcludedPaths = new HashSet<>();
 
         authenticationExcludedPaths.add("POST/cache-cruncher/user/register");
+        authenticationExcludedPaths.add("GET/cache-cruncher/user/confirm-email");
         authenticationExcludedPaths.add("POST/cache-cruncher/user/login");
 
         authorizationMappings = new HashMap<>();
@@ -56,13 +57,13 @@ public class AuthMappings {
     }
 
     ///
-    public boolean requiresAuthentication(String path) {
+    public boolean requiresAuthentication(final String path) {
 
         return !authenticationExcludedPaths.contains(path);
     }
 
     ///..
-    public boolean requiresAdminPrivilege(String path) {
+    public boolean requiresAdminPrivilege(final String path) {
 
         return authorizationMappings.getOrDefault(path, true);
     }

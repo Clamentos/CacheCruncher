@@ -17,14 +17,14 @@ public enum CacheCommandType {
     INVALIDATE;
 
     ///
-    public static CacheCommandType determineType(String command) throws IllegalArgumentException {
+    public static CacheCommandType determineType(final String command) throws IllegalArgumentException {
 
         if(command == null || command.isEmpty()) {
 
             return null;
         }
 
-        char opcode = command.charAt(0);
+        final char opcode = command.charAt(0);
 
         if(opcode == 'R') return READ;
         if(opcode == 'W') return WRITE;
