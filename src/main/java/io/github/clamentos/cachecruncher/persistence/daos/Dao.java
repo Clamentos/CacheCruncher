@@ -1,6 +1,15 @@
 package io.github.clamentos.cachecruncher.persistence.daos;
 
 ///
+import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
+
+///.
+import java.util.function.Supplier;
+
+///.
+import lombok.Getter;
+
+///.
 import org.springframework.core.env.Environment;
 
 ///..
@@ -8,9 +17,6 @@ import org.springframework.dao.DataAccessException;
 
 ///..
 import org.springframework.jdbc.core.JdbcTemplate;
-
-///.
-import lombok.Getter;
 
 ///
 @Getter
@@ -20,6 +26,8 @@ public abstract class Dao {
 
     ///
     private final JdbcTemplate jdbcTemplate;
+
+    ///..
     private final int batchSize;
 
     ///
@@ -30,13 +38,28 @@ public abstract class Dao {
     }
 
     ///
-    protected int deleteWhereIdEquals(final String tableName, final long id) throws DataAccessException {
+    protected int deleteWhereIdEquals(final String tableName, final long id) throws DatabaseException {
 
-        return jdbcTemplate.update(
+        try {
 
-            "DELETE FROM " + tableName + " WHERE id=?",
-            preparedStatement -> preparedStatement.setLong(1, id)
-        );
+                return jdbcTemplate.update(
+
+                "DELETE FROM " + tableName + " WHERE id=?",
+                preparedStatement -> preparedStatement.setLong(1, id)
+            );
+        }
+
+        catch(final DataAccessException exc) {
+
+            throw new DatabaseException(exc);
+        }
+    }
+
+    ///..
+    protected <T> T wrap(final Supplier<T> action) throws DatabaseException {
+
+        try { return action.get(); }
+        catch(final DataAccessException exc) { throw new DatabaseException(exc); }
     }
 
     ///

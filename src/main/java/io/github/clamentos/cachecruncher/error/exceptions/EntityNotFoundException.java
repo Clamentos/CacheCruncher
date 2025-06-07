@@ -1,15 +1,12 @@
 package io.github.clamentos.cachecruncher.error.exceptions;
 
 ///
-import io.github.clamentos.cachecruncher.error.ErrorDetails;
-
-///
-public final class EntityNotFoundException extends RuntimeException {
+public final class EntityNotFoundException extends CacheCruncherException {
 
     ///
-    public EntityNotFoundException(final ErrorDetails errorDetails) {
+    public EntityNotFoundException(Throwable cause) {
 
-        super(errorDetails);
+        super(cause);
     }
 
     ///

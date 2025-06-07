@@ -20,4 +20,10 @@ public final class Session {
     private final boolean isAdmin;
 
     ///
+    public boolean isExpired(final long now) {
+
+        return expiresAt < now;
+    }
+
+    ///
 }

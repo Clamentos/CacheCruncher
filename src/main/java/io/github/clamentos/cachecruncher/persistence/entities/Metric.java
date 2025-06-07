@@ -16,8 +16,8 @@ public final class Metric {
     private final long createdAt;
     private final int second;
     private final String endpoint;
-    private final short status;
     private final String data;
+    private final short status;
 
     ///
 }

@@ -9,11 +9,11 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class MemoryInfo {
+public final class MemoryInfoDto {
 
     ///
-    private final MemorySubInfo heapUsage;
-    private final MemorySubInfo nonHeapUsage;
+    private final MemorySubInfoDto heapUsage;
+    private final MemorySubInfoDto nonHeapUsage;
 
     ///
 }

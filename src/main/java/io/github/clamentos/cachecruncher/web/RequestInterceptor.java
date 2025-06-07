@@ -14,6 +14,9 @@ import io.github.clamentos.cachecruncher.error.exceptions.AuthorizationException
 ///..
 import io.github.clamentos.cachecruncher.persistence.entities.Session;
 
+///..
+import io.github.clamentos.cachecruncher.utility.ErrorMessages;
+
 ///.
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -39,16 +42,20 @@ public class RequestInterceptor implements HandlerInterceptor {
 
     ///
     private static final String ATTRIBUTE_NAME = "session";
-    private static final int COOKIE_PREFIX_LENGTH = 16;
     private static final int COOKIE_LENGTH = 60;
+    private static final int COOKIE_PREFIX_LENGTH = 16;
 
     ///.
     private final SessionService sessionService;
+
+    ///..
     private final AuthMappings authMappings;
 
     ///..
     private final String gatewaySecret;
     private final boolean bypass;
+
+    ///..
     private final boolean checkSecret;
 
     ///
@@ -69,40 +76,32 @@ public class RequestInterceptor implements HandlerInterceptor {
     public boolean preHandle(final HttpServletRequest request, final HttpServletResponse response, final Object handler)
     throws AuthenticationException, AuthorizationException {
 
-        if(!bypass) {
+        final String path = request.getMethod() + request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
 
-            String path = request.getMethod() + request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
-            String gatewaySecretHeader = request.getHeader("Authorization");
+        if(!bypass && !path.contains("/**")) {
+
+            if(checkSecret && !gatewaySecret.equals(request.getHeader("Authorization"))) throw this.fail();
             String authCookie = request.getHeader("Cookie");
 
-            if(checkSecret && !gatewaySecret.equals(gatewaySecretHeader)) {
+            if(authCookie == null || authCookie.length() != COOKIE_LENGTH || !authCookie.startsWith("sessionIdCookie")) {
 
                 throw this.fail();
             }
 
-            if(authCookie != null && authCookie.length() >= COOKIE_LENGTH && authCookie.startsWith("sessionIdCookie")) {
-
-                authCookie = authCookie.substring(COOKIE_PREFIX_LENGTH);
-            }
+            authCookie = authCookie.substring(COOKIE_PREFIX_LENGTH);
 
             if(authMappings.requiresAuthentication(path)) {
 
-                if(authCookie != null) {
+                if(authCookie == null) throw this.fail();
 
-                    Session session = sessionService.check(
+                final Session session = sessionService.check(
 
-                        authCookie,
-                        authMappings.requiresAdminPrivilege(path),
-                        "Not enough privileges to call this API"
-                    );
+                    authCookie,
+                    authMappings.requiresAdminPrivilege(path),
+                    ErrorMessages.NOT_ENOUGH_PRIVILEGES
+                );
 
-                    request.setAttribute(ATTRIBUTE_NAME, session);
-                }
-
-                else {
-
-                    throw this.fail();
-                }
+                request.setAttribute(ATTRIBUTE_NAME, session);
             }
 
             else {

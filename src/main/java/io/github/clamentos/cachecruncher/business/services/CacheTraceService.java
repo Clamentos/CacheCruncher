@@ -1,14 +1,13 @@
 package io.github.clamentos.cachecruncher.business.services;
 
 ///
-import com.fasterxml.jackson.core.type.TypeReference;
-
-///.
 import io.github.clamentos.cachecruncher.business.simulation.SimulationStatus;
 
 ///..
-import io.github.clamentos.cachecruncher.business.simulation.cache.CacheCommandArguments;
-import io.github.clamentos.cachecruncher.business.simulation.cache.CacheCommandType;
+import io.github.clamentos.cachecruncher.business.simulation.cache.commands.CacheCommand;
+import io.github.clamentos.cachecruncher.business.simulation.cache.commands.CacheCommandType;
+import io.github.clamentos.cachecruncher.business.simulation.cache.commands.CacheCommandTypeB;
+import io.github.clamentos.cachecruncher.business.simulation.cache.commands.CacheCommandTypeC;
 
 ///..
 import io.github.clamentos.cachecruncher.business.validation.CacheTraceValidator;
@@ -19,13 +18,17 @@ import io.github.clamentos.cachecruncher.error.ErrorCode;
 import io.github.clamentos.cachecruncher.error.ErrorDetails;
 
 ///..
+import io.github.clamentos.cachecruncher.error.exceptions.CacheCruncherException;
+import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
 import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundException;
+import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
 
 ///..
 import io.github.clamentos.cachecruncher.persistence.daos.CacheTraceDao;
 
 ///..
 import io.github.clamentos.cachecruncher.persistence.entities.CacheTrace;
+import io.github.clamentos.cachecruncher.persistence.entities.CacheTraceBody;
 
 ///..
 import io.github.clamentos.cachecruncher.utility.JsonMapper;
@@ -42,7 +45,6 @@ import io.github.clamentos.cachecruncher.web.dtos.report.SimulationSummaryReport
 import io.github.clamentos.cachecruncher.web.dtos.simulation.CacheSimulationArgumentsDto;
 
 ///..
-import io.github.clamentos.cachecruncher.web.dtos.trace.CacheTraceBodyDto;
 import io.github.clamentos.cachecruncher.web.dtos.trace.CacheTraceDto;
 import io.github.clamentos.cachecruncher.web.dtos.trace.CacheTraceStatistics;
 
@@ -70,9 +72,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.core.env.Environment;
-
-///..
-import org.springframework.dao.DataAccessException;
 
 ///..
 import org.springframework.stereotype.Service;
@@ -111,9 +110,6 @@ public class CacheTraceService {
     private final AtomicLong completedSimulations;
     private final AtomicLong rejectedSimulations;
 
-    ///..
-    private final TypeReference<CacheTraceBodyDto> cacheTraceBodyDtoType;
-
     ///
     @Autowired
     public CacheTraceService(
@@ -139,49 +135,34 @@ public class CacheTraceService {
 
         completedSimulations = new AtomicLong();
         rejectedSimulations = new AtomicLong();
-
-        cacheTraceBodyDtoType = new TypeReference<>(){};
     }
 
     ///
-    @Transactional
-    public void create(final CacheTraceDto cacheTraceDto) throws DataAccessException, IllegalArgumentException {
+    @Transactional(rollbackFor = CacheCruncherException.class)
+    public void create(final CacheTraceDto cacheTraceDto) throws DatabaseException, ValidationException {
 
         cacheTraceValidator.validateForCreate(cacheTraceDto);
+        final CacheTraceBody trace = cacheTraceDto.getTrace();
 
-        CacheTraceBodyDto trace = cacheTraceDto.getTrace();
-        this.calculateTraceStatistics(trace);
-
-        CacheTrace cacheTraceEntity = new CacheTrace(
+        final CacheTrace cacheTraceEntity = new CacheTrace(
 
             -1L,
             System.currentTimeMillis(),
             null,
             cacheTraceDto.getDescription(),
             cacheTraceDto.getName(),
-            jsonMapper.serialize(trace)
+            jsonMapper.serialize(this.calculateTraceStatistics(trace)),
+            cacheTraceDto.getTrace()
         );
 
         cacheTraceDao.insert(cacheTraceEntity);
     }
 
     ///..
-    public CacheTraceDto getById(final long traceId) throws DataAccessException, EntityNotFoundException {
+    public CacheTraceDto getById(final long traceId) throws DatabaseException, EntityNotFoundException {
 
-        final CacheTrace cacheTraceEntities = cacheTraceDao.selectById(traceId);
-
-        if(cacheTraceEntities != null) {
-
-            return new CacheTraceDto(
-
-                cacheTraceEntities.getId(),
-                cacheTraceEntities.getName(),
-                cacheTraceEntities.getDescription(),
-                cacheTraceEntities.getCreatedAt(),
-                cacheTraceEntities.getUpdatedAt(),
-                jsonMapper.deserialize(cacheTraceEntities.getData(), cacheTraceBodyDtoType)
-            );
-        }
+        final CacheTrace cacheTraceEntity = cacheTraceDao.selectById(traceId);
+        if(cacheTraceEntity != null) return new CacheTraceDto(cacheTraceEntity, jsonMapper);
 
         throw this.createNotFoundException(traceId);
     }
@@ -195,7 +176,7 @@ public class CacheTraceService {
         final Long updatedAtStart,
         final Long updatedAtEnd
 
-    ) throws DataAccessException {
+    ) throws DatabaseException, ValidationException {
 
         if(updatedAtStart == null) cacheTraceValidator.requireNull(updatedAtEnd, "updatedAtEnd");
         else cacheTraceValidator.requireNotNull(updatedAtEnd, "updatedAtEnd");
@@ -224,24 +205,15 @@ public class CacheTraceService {
 
         for(final CacheTrace fetchedCacheTrace : cacheTraceEntities) {
 
-            cacheTraceDtos.add(new CacheTraceDto(
-
-                fetchedCacheTrace.getId(),
-                fetchedCacheTrace.getName(),
-                fetchedCacheTrace.getDescription(),
-                fetchedCacheTrace.getCreatedAt(),
-                fetchedCacheTrace.getUpdatedAt(),
-                null
-            ));
+            cacheTraceDtos.add(new CacheTraceDto(fetchedCacheTrace, jsonMapper));
         }
 
         return cacheTraceDtos;
     }
 
     ///..
-    @Transactional
-    public void update(final CacheTraceDto cacheTraceDto)
-    throws DataAccessException, EntityNotFoundException, IllegalArgumentException {
+    @Transactional(rollbackFor = CacheCruncherException.class)
+    public void update(final CacheTraceDto cacheTraceDto) throws DatabaseException, EntityNotFoundException, ValidationException {
 
         cacheTraceValidator.validateForUpdate(cacheTraceDto);
 
@@ -252,22 +224,27 @@ public class CacheTraceService {
 
         if(cacheTraceDto.getName() != null) cacheTraceEntity.setName(cacheTraceDto.getName());
         if(cacheTraceDto.getDescription() != null) cacheTraceEntity.setDescription(cacheTraceDto.getDescription());
-        if(cacheTraceDto.getTrace() != null) cacheTraceEntity.setData(jsonMapper.serialize(cacheTraceDto.getTrace()));
+
+        if(cacheTraceDto.getTrace() != null) {
+
+            cacheTraceEntity.setStatistics(jsonMapper.serialize(this.calculateTraceStatistics(cacheTraceDto.getTrace())));
+            cacheTraceEntity.setTrace(cacheTraceDto.getTrace());
+        }
 
         cacheTraceEntity.setUpdatedAt(System.currentTimeMillis());
         cacheTraceDao.update(cacheTraceEntity);
     }
 
     ///..
-    @Transactional
-    public void delete(final long traceId) throws DataAccessException, EntityNotFoundException {
+    @Transactional(rollbackFor = CacheCruncherException.class)
+    public void delete(final long traceId) throws DatabaseException, EntityNotFoundException {
 
         if(cacheTraceDao.delete(traceId) == 0L) throw this.createNotFoundException(traceId);
     }
 
     ///..
     public SimulationSummaryReport<CacheSimulationRootReportDto> simulate(final CacheSimulationArgumentsDto simulationArgumentsDto)
-    throws IllegalArgumentException {
+    throws ValidationException {
 
         simulationArgumentsValidator.validate(simulationArgumentsDto);
 
@@ -294,7 +271,7 @@ public class CacheTraceService {
     }
 
     ///.
-    private void calculateTraceStatistics(final CacheTraceBodyDto cacheTraceBody) {
+    private CacheTraceStatistics calculateTraceStatistics(final CacheTraceBody cacheTraceBody) {
 
         final Map<CacheCommandType, MutableInt> commandDistribution = new EnumMap<>(CacheCommandType.class);
         final List<Triple<Long, Long, MutableInt>> addressDistribution = new ArrayList<>(addressRanges);
@@ -323,7 +300,7 @@ public class CacheTraceService {
             );
         }
 
-        cacheTraceBody.setStatistics(new CacheTraceStatistics(
+        return new CacheTraceStatistics(
 
             commandDistribution.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, v -> v.getValue().getValue())),
 
@@ -332,7 +309,7 @@ public class CacheTraceService {
                 k -> (Long.toHexString(k.getA()) + "-" + Long.toHexString(k.getB())),
                 v -> v.getC().getValue()
             ))
-        ));
+        );
     }
 
     ///..
@@ -365,7 +342,7 @@ public class CacheTraceService {
                 simulations.add(new Pair<>(traceId, simulation));
             }
 
-            catch(RejectedExecutionException _) {
+            catch(final RejectedExecutionException _) {
 
                 hasErrors = true;
                 rejectedSimulations.incrementAndGet();
@@ -421,36 +398,31 @@ public class CacheTraceService {
     ///..
     private void incrementTraceStatistics(
 
-        final List<String> commands,
+        final List<CacheCommand> commands,
         final Map<CacheCommandType, MutableInt> commandDistribution,
         final List<Triple<Long, Long, MutableInt>> addressDistribution,
         final Map<String, MutableInt> repeatMap,
         final int quantity
     ) {
 
-        for(final String command : commands) {
+        for(final CacheCommand command : commands) {
 
-            final CacheCommandType commandType = CacheCommandType.determineType(command);
-            commandDistribution.computeIfAbsent(commandType, _ -> new MutableInt()).incrementAndGet(quantity);
+            commandDistribution.computeIfAbsent(command.getType(), _ -> new MutableInt()).incrementAndGet(quantity);
 
-            if(commandType == CacheCommandType.READ || commandType == CacheCommandType.WRITE) {
+            if(command instanceof final CacheCommandTypeB commandTypeB) {
 
-                final CacheCommandArguments arguments = cacheSimulationService.parseReadWritePrefetch(command);
-                final int size = arguments.getSize();
-                final long address = arguments.getAddress();
+                for(int i = 0; i < commandTypeB.getSize(); i++) {
 
-                for(int i = 0; i < size; i++) {
-
-                    this.incrementAddressDistribution(addressDistribution, address + i, quantity);
+                    this.incrementAddressDistribution(addressDistribution, commandTypeB.getValue() + i, quantity);
                 }
             }
 
-            if(commandType == CacheCommandType.REPEAT && repeatMap != null) {
+            if((command instanceof final CacheCommandTypeC commandTypeC) && repeatMap != null) {
 
-                final String[] commandComponents = command.split("#");
-                final int repetitions = Integer.parseInt(commandComponents[1]);
+                repeatMap.computeIfAbsent(commandTypeC.getSectionName(), _ -> new MutableInt())
 
-                repeatMap.computeIfAbsent(commandComponents[2], _ -> new MutableInt()).incrementAndGet(repetitions);
+                    .incrementAndGet(commandTypeC.getRepeats())
+                ;
             }
         }
     }

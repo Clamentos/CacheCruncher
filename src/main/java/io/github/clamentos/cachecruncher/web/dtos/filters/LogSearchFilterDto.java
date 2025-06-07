@@ -17,7 +17,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class LogSearchFilter extends PageableSearch {
+public final class LogSearchFilterDto extends PageableSearchDto {
 
     ///
     private final Long createdAtStart;
@@ -29,10 +29,11 @@ public final class LogSearchFilter extends PageableSearch {
 
     ///
     @JsonCreator
-    public LogSearchFilter(
+    public LogSearchFilterDto(
 
         @JsonProperty("lastTimestamp") final Long lastTimestamp,
         @JsonProperty("count") final Integer count,
+
         @JsonProperty("createdAtStart") final Long createdAtStart,
         @JsonProperty("createdAtEnd") final Long createdAtEnd,
         @JsonProperty("levels") final Set<LogLevel> levels,

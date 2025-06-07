@@ -7,6 +7,9 @@ import io.github.clamentos.cachecruncher.persistence.entities.Log;
 import io.github.clamentos.cachecruncher.utility.MutableInt;
 
 ///..
+import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
+
+///..
 import io.github.clamentos.cachecruncher.persistence.daos.LogDao;
 
 ///.
@@ -43,6 +46,7 @@ import org.springframework.core.env.Environment;
 
 ///..
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.NonTransientDataAccessResourceException;
 
 ///..
 import org.springframework.scheduling.annotation.Scheduled;
@@ -63,13 +67,11 @@ public class DatabaseLogsWriter {
     ///..
     private final Pattern pattern;
     private final DateTimeFormatter formatter;
+    private final ZoneId zoneId;
 
     ///..
     private final String logsPath;
     private final int batchSize;
-
-    ///..
-    private final ZoneId zoneId;
 
     ///
     @Autowired
@@ -79,11 +81,10 @@ public class DatabaseLogsWriter {
 
         pattern = Pattern.compile("\\|");
         formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSS");
+        zoneId = ZoneId.systemDefault();
 
         logsPath = environment.getProperty("cache-cruncher.logsPath", String.class);
         batchSize = environment.getProperty("cache-cruncher.jdbc.batchSize", Integer.class, 64);
-
-        zoneId = ZoneId.systemDefault();
     }
 
     ///
@@ -98,7 +99,7 @@ public class DatabaseLogsWriter {
             Thread.sleep(1_500L);
         }
 
-        catch(InterruptedException _) {
+        catch(final InterruptedException _) {
 
             Thread.currentThread().interrupt();
             log.warn("Interrupted, ignoring...");
@@ -153,7 +154,7 @@ public class DatabaseLogsWriter {
     }
 
     ///.
-    private void write(final Collection<String> lines) throws DataAccessException, NullPointerException, NumberFormatException {
+    private void write(final Collection<String> lines) throws DataAccessException {
 
         final List<Log> logs = new ArrayList<>(lines.size());
 
@@ -166,7 +167,8 @@ public class DatabaseLogsWriter {
             logs.add(new Log(-1L, timestamp, sections[3], sections[4], sections[5], logLevel));
         }
 
-        logDao.insert(logs);
+        try { logDao.insert(logs); }
+        catch(final DatabaseException exc) { throw new NonTransientDataAccessResourceException("unwrapped", exc.getCause()); }
     }
 
     ///

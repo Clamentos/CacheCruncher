@@ -27,7 +27,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 
 ///
-public class JsonMapper {
+public final class JsonMapper {
 
     ///
     private final ObjectMapper objectMapper;
@@ -59,9 +59,8 @@ public class JsonMapper {
 
         if(type == null) {
 
-            final String message = "Method arguments cannot be null";
-            log.error(message);
-            throw new IllegalArgumentException(new ErrorDetails(ErrorCode.GENERIC, message));
+            log.error(ErrorMessages.METHOD_ILLEGAL_ARGS);
+            throw new IllegalArgumentException(new ErrorDetails(ErrorCode.GENERIC, ErrorMessages.METHOD_ILLEGAL_ARGS));
         }
 
         try {

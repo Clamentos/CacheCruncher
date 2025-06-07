@@ -11,6 +11,10 @@ import io.github.clamentos.cachecruncher.business.services.SessionService;
 import io.github.clamentos.cachecruncher.configuration.StartupActions;
 
 ///..
+import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
+import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
+
+///..
 import io.github.clamentos.cachecruncher.monitoring.logging.LogLevel;
 
 ///..
@@ -29,17 +33,17 @@ import io.github.clamentos.cachecruncher.persistence.entities.Metric;
 import io.github.clamentos.cachecruncher.utility.JsonMapper;
 
 ///..
-import io.github.clamentos.cachecruncher.web.dtos.filters.LogSearchFilter;
-import io.github.clamentos.cachecruncher.web.dtos.filters.ResponseInfoSearchFilter;
+import io.github.clamentos.cachecruncher.web.dtos.filters.LogSearchFilterDto;
+import io.github.clamentos.cachecruncher.web.dtos.filters.ResponseInfoSearchFilterDto;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.status.ApplicationStatusDto;
-import io.github.clamentos.cachecruncher.web.dtos.status.MemoryInfo;
-import io.github.clamentos.cachecruncher.web.dtos.status.MemorySubInfo;
-import io.github.clamentos.cachecruncher.web.dtos.status.ResponsesInfo;
-import io.github.clamentos.cachecruncher.web.dtos.status.RuntimeInfo;
-import io.github.clamentos.cachecruncher.web.dtos.status.SimulationStatusInfo;
-import io.github.clamentos.cachecruncher.web.dtos.status.ThreadsInfo;
+import io.github.clamentos.cachecruncher.web.dtos.status.MemoryInfoDto;
+import io.github.clamentos.cachecruncher.web.dtos.status.MemorySubInfoDto;
+import io.github.clamentos.cachecruncher.web.dtos.status.ResponsesInfoDto;
+import io.github.clamentos.cachecruncher.web.dtos.status.RuntimeInfoDto;
+import io.github.clamentos.cachecruncher.web.dtos.status.SimulationStatusInfoDto;
+import io.github.clamentos.cachecruncher.web.dtos.status.ThreadsInfoDto;
 
 ///.
 import java.lang.management.ManagementFactory;
@@ -70,6 +74,7 @@ import org.springframework.core.task.TaskExecutor;
 
 ///..
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.NonTransientDataAccessResourceException;
 
 ///..
 import org.springframework.http.HttpStatus;
@@ -175,15 +180,15 @@ public class ApplicationStatusService {
         final boolean includeSessionsInfo
     ) {
 
-        RuntimeInfo runtimeInfo = null;
-        MemoryInfo memoryInfo = null;
-        ThreadsInfo threadsInfo = null;
-        ResponsesInfo responsesInfo = null;
-        SimulationStatusInfo simulationInfo = null;
+        RuntimeInfoDto runtimeInfo = null;
+        MemoryInfoDto memoryInfo = null;
+        ThreadsInfoDto threadsInfo = null;
+        ResponsesInfoDto responsesInfo = null;
+        SimulationStatusInfoDto simulationInfo = null;
 
         if(includeRuntimeInfo) {
 
-            runtimeInfo = new RuntimeInfo(
+            runtimeInfo = new RuntimeInfoDto(
 
                 runtimeBean.getStartTime(),
                 runtimeBean.getUptime(),
@@ -197,9 +202,9 @@ public class ApplicationStatusService {
             final MemoryUsage heapMemoryUsage = memoryBean.getHeapMemoryUsage();
             final MemoryUsage nonHeapMemoryUsage = memoryBean.getHeapMemoryUsage();
 
-            memoryInfo = new MemoryInfo(
+            memoryInfo = new MemoryInfoDto(
 
-                new MemorySubInfo(
+                new MemorySubInfoDto(
 
                     heapMemoryUsage.getInit(),
                     heapMemoryUsage.getUsed(),
@@ -207,7 +212,7 @@ public class ApplicationStatusService {
                     heapMemoryUsage.getMax()
                 ),
 
-                new MemorySubInfo(
+                new MemorySubInfoDto(
 
                     nonHeapMemoryUsage.getInit(),
                     nonHeapMemoryUsage.getUsed(),
@@ -222,7 +227,7 @@ public class ApplicationStatusService {
             final int threadCount = threadBean.getThreadCount();
             final int daemonThreadCount = threadBean.getDaemonThreadCount();
 
-            threadsInfo = new ThreadsInfo(
+            threadsInfo = new ThreadsInfoDto(
 
                 threadCount - daemonThreadCount,
                 daemonThreadCount,
@@ -236,7 +241,7 @@ public class ApplicationStatusService {
 
             final Map<String, Integer> uriIdMap = startupActions.getUriIdMap();
 
-            responsesInfo = new ResponsesInfo(
+            responsesInfo = new ResponsesInfoDto(
 
                 uriIdMap,
                 requestsMetrics.getMetrics(uriIdMap)
@@ -245,7 +250,7 @@ public class ApplicationStatusService {
 
         if(includeSimulationInfo) {
 
-            simulationInfo = new SimulationStatusInfo(
+            simulationInfo = new SimulationStatusInfoDto(
 
                 simulationsExecutor.getQueueSize(),
                 cacheTraceService.getCompletedSimulationCount(),
@@ -266,17 +271,17 @@ public class ApplicationStatusService {
     }
 
     ///..
-    public ResponsesInfo getResponsesInfoByFilter(final ResponseInfoSearchFilter responseInfoSearchFilter)
-    throws DataAccessException, IllegalArgumentException {
+    public ResponsesInfoDto getResponsesInfoByFilter(final ResponseInfoSearchFilterDto responseInfoSearchFilter)
+    throws DatabaseException, ValidationException {
 
         responseInfoSearchFilterValidator.validate(responseInfoSearchFilter);
 
         final List<Metric> fetchedMetricEntities = metricDao.selectMetricsByFilter(
 
-            responseInfoSearchFilter.getCreatedAtStart(),
-            responseInfoSearchFilter.getCreatedAtEnd(),
             responseInfoSearchFilter.getLastTimestamp(),
-            responseInfoSearchFilter.getCount()
+            responseInfoSearchFilter.getCount(),
+            responseInfoSearchFilter.getCreatedAtStart(),
+            responseInfoSearchFilter.getCreatedAtEnd()
         );
 
         final Map<Integer, Map<Integer, Map<HttpStatus, Map<String, Integer>>>> metrics = new HashMap<>();
@@ -293,11 +298,11 @@ public class ApplicationStatusService {
             ;
         }
 
-        return new ResponsesInfo(uriIdMap, metrics);
+        return new ResponsesInfoDto(uriIdMap, metrics);
     }
 
     ///..
-    public List<Log> getLogsByFilter(final LogSearchFilter logSearchFilter) throws DataAccessException, IllegalArgumentException {
+    public List<Log> getLogsByFilter(final LogSearchFilterDto logSearchFilter) throws DatabaseException, ValidationException {
 
         logSearchFilterValidator.validate(logSearchFilter);
 
@@ -315,21 +320,21 @@ public class ApplicationStatusService {
     }
 
     ///..
-    public Map<LogLevel, Long> getLogsCount() throws DataAccessException {
+    public Map<LogLevel, Long> getLogsCount() throws DatabaseException {
 
         return logDao.countByLevel();
     }
 
     ///..
-    @Transactional
-    public int deleteMetrics(final long createdAtStart, final long createdAtEnd) throws DataAccessException {
+    @Transactional(rollbackFor = DatabaseException.class)
+    public int deleteMetrics(final long createdAtStart, final long createdAtEnd) throws DatabaseException {
 
         return metricDao.delete(createdAtStart, createdAtEnd);
     }
 
     ///..
-    @Transactional
-    public int deleteLogs(final long createdAtStart, final long createdAtEnd) throws DataAccessException {
+    @Transactional(rollbackFor = DatabaseException.class)
+    public int deleteLogs(final long createdAtStart, final long createdAtEnd) throws DatabaseException {
 
         return logDao.delete(createdAtStart, createdAtEnd);
     }
@@ -375,15 +380,23 @@ public class ApplicationStatusService {
                                 now,
                                 metricEntry.getKey(),
                                 pathEntry.getKey(),
-                                (short)statusEntry.getKey().value(),
-                                jsonMapper.serialize(statusEntry.getValue().getDistribution())
+                                jsonMapper.serialize(statusEntry.getValue().getDistribution()),
+                                (short)statusEntry.getKey().value()
                             ));
                         }
                     }
                 }
 
-                metricDao.insert(metricEntities);
-                log.info("Metrics dumping task completed, {} metrics written", metricEntities.size());
+                try {
+
+                    metricDao.insert(metricEntities);
+                    log.info("Metrics dumping task completed, {} metrics written", metricEntities.size());
+                }
+
+                catch(final DatabaseException exc) {
+
+                    throw new NonTransientDataAccessResourceException("Unwrapped", exc.getCause());
+                }
             });
         }
 

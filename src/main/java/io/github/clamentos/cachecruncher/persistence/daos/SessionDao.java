@@ -1,6 +1,9 @@
 package io.github.clamentos.cachecruncher.persistence.daos;
 
 ///
+import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
+
+///..
 import io.github.clamentos.cachecruncher.persistence.entities.Session;
 
 ///.
@@ -17,9 +20,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.core.env.Environment;
-
-///..
-import org.springframework.dao.DataAccessException;
 
 ///..
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -50,36 +50,39 @@ public class SessionDao extends Dao {
     }
 
     ///
-    @Transactional
-    public void insert(final Session session) throws DataAccessException {
+    @Transactional(rollbackFor = DatabaseException.class)
+    public void insert(final Session session) throws DatabaseException {
 
-        super.getJdbcTemplate().update(INSERT_SQL, preparedStatement -> {
+        super.wrap(() ->
 
-            preparedStatement.setLong(1, session.getUserId());
-            preparedStatement.setLong(2, session.getExpiresAt());
-            preparedStatement.setString(3, session.getEmail());
-            preparedStatement.setString(4, session.getDevice());
-            preparedStatement.setString(5, session.getId());
-            preparedStatement.setBoolean(6, session.isAdmin());
-        });
+            super.getJdbcTemplate().update(INSERT_SQL, preparedStatement -> {
+
+                preparedStatement.setLong(1, session.getUserId());
+                preparedStatement.setLong(2, session.getExpiresAt());
+                preparedStatement.setString(3, session.getEmail());
+                preparedStatement.setString(4, session.getDevice());
+                preparedStatement.setString(5, session.getId());
+                preparedStatement.setBoolean(6, session.isAdmin());
+            })
+        );
     }
 
     ///..
-    public List<Session> selectAll() throws DataAccessException {
+    public List<Session> selectAll() throws DatabaseException {
 
-        return super.getJdbcTemplate().query(SELECT_SQL, this::mapResultSet);
+        return super.wrap(() -> super.getJdbcTemplate().query(SELECT_SQL, this::mapResultSet));
     }
 
     ///..
-    @Transactional
-    public void delete(final String id) throws DataAccessException {
+    @Transactional(rollbackFor = DatabaseException.class)
+    public void delete(final String id) throws DatabaseException {
 
-        super.getJdbcTemplate().update(DELETE_BY_ID_SQL, preparedStatement -> preparedStatement.setString(1, id));
+        super.wrap(() -> super.getJdbcTemplate().update(DELETE_BY_ID_SQL, preparedStatement -> preparedStatement.setString(1, id)));
     }
 
     ///..
-    @Transactional
-    public int deleteAll(final Collection<String> ids) throws DataAccessException {
+    @Transactional(rollbackFor = DatabaseException.class)
+    public int deleteAll(final Collection<String> ids) throws DatabaseException {
 
         int deleted = 0;
 
@@ -122,14 +125,14 @@ public class SessionDao extends Dao {
     }
 
     ///..
-    private int doDelete(final List<String> ids) throws DataAccessException {
+    private int doDelete(final List<String> ids) throws DatabaseException {
 
         final StringBuilder idsString = new StringBuilder();
 
         for(final String id : ids) idsString.append("\"").append(id).append("\",");
         idsString.deleteCharAt(idsString.length() - 1).append(")");
 
-        return super.getJdbcTemplate().update(DELETE_ALL_BY_IDS_SQL + idsString);
+        return super.wrap(() -> super.getJdbcTemplate().update(DELETE_ALL_BY_IDS_SQL + idsString));
     }
 
     ///

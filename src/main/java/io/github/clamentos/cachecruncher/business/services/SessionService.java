@@ -7,6 +7,8 @@ import io.github.clamentos.cachecruncher.error.ErrorDetails;
 ///..
 import io.github.clamentos.cachecruncher.error.exceptions.AuthenticationException;
 import io.github.clamentos.cachecruncher.error.exceptions.AuthorizationException;
+import io.github.clamentos.cachecruncher.error.exceptions.CacheCruncherException;
+import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
 
 ///..
 import io.github.clamentos.cachecruncher.persistence.daos.SessionDao;
@@ -19,6 +21,7 @@ import java.security.SecureRandom;
 
 ///..
 import java.util.Base64;
+import java.util.Collection;
 import java.util.HashSet;
 
 ///..
@@ -39,9 +42,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.core.env.Environment;
-
-///..
-import org.springframework.dao.DataAccessException;
 
 ///..
 import org.springframework.scheduling.annotation.Scheduled;
@@ -72,14 +72,13 @@ public class SessionService {
 
     ///..
     private final long sessionDuration;
-    private final long sessionExpirationMargin;
     private final int sessionIdLength;
     private final int maxSessionsPerUser;
     private final int maxTotalSessions;
 
     ///
     @Autowired
-    public SessionService(final SessionDao sessionDao, final Environment environment) {
+    public SessionService(final SessionDao sessionDao, final Environment environment) throws DatabaseException {
 
         this.sessionDao = sessionDao;
 
@@ -87,6 +86,11 @@ public class SessionService {
         sessions = new ConcurrentHashMap<>();
         userSessionCounters = new ConcurrentHashMap<>();
         sessionsCounter = new AtomicInteger();
+
+        this.sessionDuration = environment.getProperty("cache-cruncher.auth.sessionDuration", Long.class, 3_600_000L);
+        this.sessionIdLength = environment.getProperty("cache-cruncher.auth.sessionIdLength", Integer.class, 32);
+        this.maxSessionsPerUser = environment.getProperty("cache-cruncher.auth.maxSessionsPerUser", Integer.class, 2);
+        this.maxTotalSessions = environment.getProperty("cache-cruncher.auth.maxTotalSessions", Integer.class, 25_000);
 
         for(final Session session : sessionDao.selectAll()) {
 
@@ -96,18 +100,12 @@ public class SessionService {
         }
 
         if(sessions.size() > 0) log.info("Recovered {} sessions", sessions.size());
-
-        this.sessionDuration = environment.getProperty("cache-cruncher.auth.sessionDuration", Long.class, 3_600_000L);
-        this.sessionExpirationMargin = environment.getProperty("cache-cruncher.auth.sessionExpirationMargin", Long.class, 5_000L);
-        this.sessionIdLength = environment.getProperty("cache-cruncher.auth.sessionIdLength", Integer.class, 32);
-        this.maxSessionsPerUser = environment.getProperty("cache-cruncher.auth.maxSessionsPerUser", Integer.class, 1);
-        this.maxTotalSessions = environment.getProperty("cache-cruncher.auth.maxTotalSessions", Integer.class, 25_000);
     }
 
     ///
-    @Transactional
+    @Transactional(rollbackFor = CacheCruncherException.class)
     public Session generate(final long userId, final String email, final boolean isAdmin, final String device)
-    throws AuthorizationException, DataAccessException {
+    throws AuthorizationException, DatabaseException {
 
         if(sessionsCounter.getAndUpdate(current -> this.updateCounter(current, maxTotalSessions)) >= maxTotalSessions) {
 
@@ -132,7 +130,7 @@ public class SessionService {
             sessionDao.insert(session);
         }
 
-        catch(final DataAccessException exc) {
+        catch(final DatabaseException exc) {
 
             sessionsCounter.decrementAndGet();
             userSessionCount.decrementAndGet();
@@ -151,11 +149,9 @@ public class SessionService {
         final Session session = sessions.get(sessionId);
         if(session == null) throw new AuthorizationException(new ErrorDetails(ErrorCode.SESSION_NOT_FOUND));
 
-        final long expiration = session.getExpiresAt() - sessionExpirationMargin;
+        if(session.isExpired(System.currentTimeMillis())) {
 
-        if(expiration < System.currentTimeMillis()) {
-
-            throw new AuthenticationException(new ErrorDetails(ErrorCode.EXPIRED_SESSION, expiration));
+            throw new AuthenticationException(new ErrorDetails(ErrorCode.EXPIRED_SESSION, session.getExpiresAt()));
         }
 
         if(requiresAdmin && !session.isAdmin()) {
@@ -167,11 +163,11 @@ public class SessionService {
     }
 
     ///..
-    @Transactional
-    public void remove(final String sessionId) throws AuthenticationException, DataAccessException {
+    @Transactional(rollbackFor = CacheCruncherException.class)
+    public void remove(final String sessionId) throws AuthenticationException, DatabaseException {
 
         final Session sessionToBeRemoved = sessions.get(sessionId);
-        if(sessionToBeRemoved == null) throw new AuthorizationException(new ErrorDetails(ErrorCode.SESSION_NOT_FOUND));
+        if(sessionToBeRemoved == null) throw new AuthenticationException(new ErrorDetails(ErrorCode.SESSION_NOT_FOUND));
 
         sessionDao.delete(sessionToBeRemoved.getId());
 
@@ -183,28 +179,9 @@ public class SessionService {
     }
 
     ///..
-    @Transactional
-    @SuppressWarnings("squid:S6809")
-    public void removeAll(final long userId) {
+    public Collection<Session> getSessions() {
 
-        for(final Session session : sessions.values()) {
-
-            if(session.getUserId() == userId) {
-
-                try { this.remove(session.getId()); }
-                catch(final AuthenticationException _) { log.warn("Session not found"); }
-
-                catch(final DataAccessException exc) {
-
-                    log.error(
-
-                        "Could not remove session because of {}: {}, will skip this one",
-                        exc.getClass().getSimpleName(),
-                        exc.getMessage()
-                    );
-                }
-            }
-        }
+        return sessions.values();
     }
 
     ///..
@@ -234,7 +211,7 @@ public class SessionService {
 
         for(final Map.Entry<String, Session> session : sessions.entrySet()) {
 
-            if(session.getValue().getExpiresAt() < now) {
+            if(session.getValue().isExpired(now)) {
 
                 expiredSessionIds.add(session.getValue().getId());
                 expiredCount++;
@@ -263,7 +240,7 @@ public class SessionService {
             );
         }
 
-        catch(final DataAccessException exc) {
+        catch(final DatabaseException exc) {
 
             log.error("Could not complete the expired session task, {}: {}", exc.getClass().getSimpleName(), exc.getMessage());
         }

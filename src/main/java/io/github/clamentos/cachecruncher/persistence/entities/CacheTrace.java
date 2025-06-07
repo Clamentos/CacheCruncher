@@ -19,7 +19,8 @@ public final class CacheTrace {
     private Long updatedAt;
     private String description;
     private String name;
-    private String data;
+    private String statistics;
+    private CacheTraceBody trace;
 
     ///
 }

@@ -1,6 +1,10 @@
 package io.github.clamentos.cachecruncher.web.controllers;
 
 ///
+import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
+import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
+
+///..
 import io.github.clamentos.cachecruncher.monitoring.logging.LogLevel;
 
 ///..
@@ -10,12 +14,12 @@ import io.github.clamentos.cachecruncher.monitoring.status.ApplicationStatusServ
 import io.github.clamentos.cachecruncher.persistence.entities.Log;
 
 ///..
-import io.github.clamentos.cachecruncher.web.dtos.filters.LogSearchFilter;
-import io.github.clamentos.cachecruncher.web.dtos.filters.ResponseInfoSearchFilter;
+import io.github.clamentos.cachecruncher.web.dtos.filters.LogSearchFilterDto;
+import io.github.clamentos.cachecruncher.web.dtos.filters.ResponseInfoSearchFilterDto;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.status.ApplicationStatusDto;
-import io.github.clamentos.cachecruncher.web.dtos.status.ResponsesInfo;
+import io.github.clamentos.cachecruncher.web.dtos.status.ResponsesInfoDto;
 
 ///.
 import java.util.List;
@@ -23,9 +27,6 @@ import java.util.Map;
 
 ///.
 import org.springframework.beans.factory.annotation.Autowired;
-
-///..
-import org.springframework.dao.DataAccessException;
 
 ///..
 import org.springframework.http.ResponseEntity;
@@ -80,23 +81,26 @@ public class ApplicationStatusController {
 
     ///..
     @GetMapping(path = "/metrics/history", consumes = "application/json", produces = "application/json")
-    public ResponseEntity<ResponsesInfo> getResponsesInfoByFilter(@RequestBody final ResponseInfoSearchFilter responseInfoSearchFilter)
-    throws DataAccessException, IllegalArgumentException {
+    public ResponseEntity<ResponsesInfoDto> getResponsesInfoByFilter(
+        
+        @RequestBody final ResponseInfoSearchFilterDto responseInfoSearchFilter
+
+    ) throws DatabaseException, ValidationException {
 
         return ResponseEntity.ok(applicationStatusService.getResponsesInfoByFilter(responseInfoSearchFilter));
     }
 
     ///..
     @GetMapping(path = "/logs", consumes = "application/json", produces = "application/json")
-    public ResponseEntity<List<Log>> getLogsByFilter(@RequestBody final LogSearchFilter logSearchFilter)
-    throws DataAccessException, IllegalArgumentException {
+    public ResponseEntity<List<Log>> getLogsByFilter(@RequestBody final LogSearchFilterDto logSearchFilter)
+    throws DatabaseException, ValidationException {
 
         return ResponseEntity.ok(applicationStatusService.getLogsByFilter(logSearchFilter));
     }
 
     ///..
     @GetMapping(path = "/logs/count", produces = "application/json")
-    public ResponseEntity<Map<LogLevel, Long>> getLogsCount() throws DataAccessException {
+    public ResponseEntity<Map<LogLevel, Long>> getLogsCount() throws DatabaseException {
 
         return ResponseEntity.ok(applicationStatusService.getLogsCount());
     }
@@ -104,7 +108,7 @@ public class ApplicationStatusController {
     ///..
     @DeleteMapping(path = "/metrics/history")
     public ResponseEntity<Integer> deleteMetrics(@RequestParam final long createdAtStart, @RequestParam final long createdAtEnd)
-    throws DataAccessException {
+    throws DatabaseException {
 
         return ResponseEntity.ok(applicationStatusService.deleteMetrics(createdAtStart, createdAtEnd));
     }
@@ -112,7 +116,7 @@ public class ApplicationStatusController {
     ///..
     @DeleteMapping(path = "/logs")
     public ResponseEntity<Integer> deleteLogs(@RequestParam final long createdAtStart, @RequestParam final long createdAtEnd)
-    throws DataAccessException {
+    throws DatabaseException {
 
         return ResponseEntity.ok(applicationStatusService.deleteLogs(createdAtStart, createdAtEnd));
     }

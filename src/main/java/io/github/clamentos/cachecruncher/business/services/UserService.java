@@ -13,8 +13,11 @@ import io.github.clamentos.cachecruncher.error.ErrorDetails;
 ///..
 import io.github.clamentos.cachecruncher.error.exceptions.AuthenticationException;
 import io.github.clamentos.cachecruncher.error.exceptions.AuthorizationException;
+import io.github.clamentos.cachecruncher.error.exceptions.CacheCruncherException;
+import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
 import io.github.clamentos.cachecruncher.error.exceptions.EntityAlreadyExistsException;
 import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundException;
+import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
 import io.github.clamentos.cachecruncher.error.exceptions.WrongPasswordException;
 
 ///..
@@ -31,11 +34,6 @@ import io.github.clamentos.cachecruncher.utility.Pair;
 import io.github.clamentos.cachecruncher.web.dtos.AuthDto;
 
 ///.
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-
-///.
-import java.util.HexFormat;
 import java.util.List;
 
 ///.
@@ -46,13 +44,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.core.env.Environment;
-
-///..
-import org.springframework.dao.DataAccessException;
-
-///..
-import org.springframework.mail.MailException;
-import org.springframework.mail.SimpleMailMessage;
 
 ///..
 import org.springframework.mail.javamail.JavaMailSender;
@@ -75,25 +66,16 @@ public class UserService {
 
     ///..
     private final SessionService sessionService;
+    private final VerificationService verificationService;
 
     ///..
     private final UserDao userDao;
-
-    ///..
-    private final JavaMailSender javaMailSender;
-
-    ///..
-    private final MessageDigest hasher;
-    private final HexFormat hexer;
 
     ///..
     private final int bcryptEffort;
     private final int loginFailures;
     private final int loginFailuresCap;
     private final long userLockTime;
-    private final String mailVerifySecret;
-    private final boolean doSendVerificationEmail;
-    private final long mailVerifyDuration;
 
     ///
     @Autowired
@@ -101,38 +83,26 @@ public class UserService {
 
         final UserValidator userValidator,
         final SessionService sessionService,
+        final VerificationService verificationService,
         final UserDao userDao,
         final JavaMailSender javaMailSender,
         final Environment environment
-
-    ) throws IllegalArgumentException, NoSuchAlgorithmException {
+    ) {
 
         this.userValidator = userValidator;
         this.sessionService = sessionService;
+        this.verificationService = verificationService;
         this.userDao = userDao;
-        this.javaMailSender = javaMailSender;
 
         bcryptEffort = environment.getProperty("cache-cruncher.auth.bcryptEffort", Integer.class, 12);
         loginFailures = environment.getProperty("cache-cruncher.auth.loginFailures", Integer.class, 5);
         loginFailuresCap = loginFailures + environment.getProperty("cache-cruncher.auth.loginFailuresCap", Integer.class, 3);
         userLockTime = environment.getProperty("cache-cruncher.auth.userLockTime", Long.class, 60_000L);
-        mailVerifySecret = environment.getProperty("cache-cruncher.auth.mailVerifySecret", String.class);
-        doSendVerificationEmail = environment.getProperty("cache-cruncher.auth.doSendVerificationEmail", Boolean.class, true);
-        mailVerifyDuration = environment.getProperty("cache-cruncher.auth.mailVerifyDuration", Long.class, 120_000L);
-
-        if(mailVerifySecret == null || mailVerifySecret.isEmpty()) {
-
-            throw new IllegalArgumentException("The property \"cache-cruncher.auth.mailVerifySecret\" cannot be null or empty");
-        }
-
-        hasher = MessageDigest.getInstance("SHA-256");
-        hexer = HexFormat.of();
     }
 
     ///
-    @Transactional
-    public String register(final AuthDto authDto)
-    throws DataAccessException, EntityAlreadyExistsException, IllegalArgumentException, MailException {
+    @Transactional(rollbackFor = CacheCruncherException.class)
+    public String register(final AuthDto authDto) throws DatabaseException, EntityAlreadyExistsException, ValidationException {
 
         userValidator.validate(authDto);
 
@@ -145,65 +115,28 @@ public class UserService {
         final String encryptedPassword = BCrypt.withDefaults().hashToString(bcryptEffort, password.toCharArray());
         userDao.insert(new User(-1L, null, System.currentTimeMillis(), null, email, encryptedPassword, (short)0, false));
 
-        String plainToken = System.currentTimeMillis() + ";" + email;
-        String hexHash = hexer.formatHex(hasher.digest((plainToken + ";" + mailVerifySecret).getBytes()));
-        String hexToken = hexer.formatHex(plainToken.getBytes()) + ";" + hexHash;
-
-        // false when testing.
-        if(doSendVerificationEmail) {
-
-            SimpleMailMessage emailMessage = new SimpleMailMessage();
-
-            emailMessage.setTo(email);
-            emailMessage.setFrom("cache-cruncher-noreply@gmail.com");
-            emailMessage.setSubject("Account verification");
-            emailMessage.setText("..."); // link with token in url
-
-            javaMailSender.send(emailMessage);
-            return "";
-        }
-
-        return hexToken;
+        return verificationService.sendVerificationEmail(email);
     }
 
     ///..
-    @Transactional
+    public String resendVerificationEmail(final String email) {
+
+        return verificationService.sendVerificationEmail(email);
+    }
+
+    ///..
+    @Transactional(rollbackFor = CacheCruncherException.class)
     public void confirmEmail(final String token)
-    throws DataAccessException, EntityNotFoundException, IllegalArgumentException, IllegalStateException {
+    throws AuthenticationException, DatabaseException, EntityNotFoundException, ValidationException {
 
         userValidator.requireNotBlank(token, "token");
-        final String[] splits = token.split(";");
 
-        if(splits.length != 2) throw this.badlyFormattedToken();
-
-        final String hexToken = splits[0];
-        final String hexHashToCheck = splits[1];
-
-        final String plainToken = new String(hexer.parseHex(hexToken)); // timestamp;email
-        final String[] components = plainToken.split(";");
-
-        if(components.length != 2) throw this.badlyFormattedToken();
-
-        final long timestamp = Long.parseLong(components[0]);
-        final String email = components[1];
         final long now = System.currentTimeMillis();
-
-        if(timestamp + mailVerifyDuration <= now) {
-
-            throw new IllegalArgumentException(new ErrorDetails(ErrorCode.EXPIRED_SESSION, email));
-        }
-
-        final String hexHash = hexer.formatHex(hasher.digest((plainToken + ";" + mailVerifySecret).getBytes()));
-
-        if(!hexHashToCheck.equals(hexHash)) { 
-
-            throw new IllegalArgumentException(new ErrorDetails(ErrorCode.INVALID_VERIFICATION_TOKEN));
-        }
-
+        final String email = verificationService.verify(token, now);
         final User user = userDao.selectByEmail(email);
 
         if(user == null) throw new EntityNotFoundException(new ErrorDetails(ErrorCode.USER_NOT_FOUND, email));
-        if(user.getValidatedAt() != null) throw new IllegalStateException(new ErrorDetails(ErrorCode.USER_ALREADY_VALIDATED, email));
+        if(user.getValidatedAt() != null) throw new AuthenticationException(new ErrorDetails(ErrorCode.USER_ALREADY_VALIDATED, email));
 
         if(!userDao.updateForEmailValidation(email, now)) {
 
@@ -212,8 +145,13 @@ public class UserService {
     }
 
     ///..
-    @Transactional(noRollbackFor = WrongPasswordException.class)
-    public Pair<User, Session> login(final AuthDto authDto, final String device) throws AuthenticationException, DataAccessException {
+    @Transactional(
+
+        rollbackFor = {AuthenticationException.class, AuthorizationException.class, DatabaseException.class, ValidationException.class},
+        noRollbackFor = WrongPasswordException.class
+    )
+    public Pair<User, Session> login(final AuthDto authDto, final String device)
+    throws AuthenticationException, AuthorizationException, DatabaseException, ValidationException {
 
         userValidator.validate(authDto);
 
@@ -260,46 +198,63 @@ public class UserService {
             }
 
             userDao.updateForLogin(user.getId(), lockedUntil, (short)(failedAccesses + 1));
-            if(doLock) sessionService.removeAll(user.getId());
+            if(doLock) this.logoutAll(user.getId());
 
             throw new WrongPasswordException(new ErrorDetails(ErrorCode.WRONG_PASSWORD));
         }
     }
 
     ///..
-    @Transactional
+    @Transactional(rollbackFor = CacheCruncherException.class)
     public Session refresh(final Session session, final String device)
-    throws AuthenticationException, AuthorizationException, DataAccessException {
+    throws AuthenticationException, AuthorizationException, DatabaseException {
 
         sessionService.remove(session.getId());
         return sessionService.generate(session.getUserId(), session.getEmail(), session.isAdmin(), device);
     }
 
     ///..
-    @Transactional
-    public void logout(final Session session) throws AuthenticationException, DataAccessException {
+    @Transactional(rollbackFor = CacheCruncherException.class)
+    public void logout(final Session session) throws AuthenticationException, DatabaseException {
 
         sessionService.remove(session.getId());
         log.info("User {} logged out from single session", session.getUserId());
     }
 
     ///..
-    @Transactional
-    public void logoutAll(final Session session) {
+    public void logoutAll(final long userId) {
 
-        sessionService.removeAll(session.getUserId());
-        log.info("User {} logged out from all sessions", session.getUserId());
+        for(final Session session : sessionService.getSessions()) {
+
+            if(session.getUserId() == userId) {
+
+                try { sessionService.remove(session.getId()); }
+                catch(final AuthenticationException exc) { log.warn(((ErrorDetails)exc.getCause()).getErrorCode().toString()); }
+
+                catch(final DatabaseException exc) {
+
+                    log.error(
+
+                        "Could not remove session because of {}: {}, will skip this one",
+                        exc.getClass().getSimpleName(),
+                        exc.getMessage()
+                    );
+                }
+            }
+        }
+
+        log.info("User {} logged out from all sessions", userId);
     }
 
     ///..
-    public List<User> getAll() throws DataAccessException {
+    public List<User> getAll() throws DatabaseException {
 
         return userDao.selectAll();
     }
 
     ///..
-    @Transactional
-    public void updatePrivilege(final long userId, final boolean privilege) throws DataAccessException, EntityNotFoundException {
+    @Transactional(rollbackFor = CacheCruncherException.class)
+    public void updatePrivilege(final long userId, final boolean privilege) throws DatabaseException, EntityNotFoundException {
 
         if(!userDao.updatePrivilege(userId, privilege)) {
 
@@ -308,9 +263,9 @@ public class UserService {
     }
 
     ///..
-    @Transactional
+    @Transactional(rollbackFor = CacheCruncherException.class)
     public void delete(final long userId, final Session session)
-    throws AuthorizationException, DataAccessException, EntityNotFoundException {
+    throws AuthenticationException, AuthorizationException, DatabaseException, EntityNotFoundException {
 
         final Boolean privilege = userDao.getPrivilege(userId);
 
@@ -318,12 +273,6 @@ public class UserService {
         if(userId != session.getUserId()) sessionService.check(session.getId(), true, "Cannot delete a user other than self");
 
         userDao.delete(userId);
-    }
-
-    ///..
-    private IllegalArgumentException badlyFormattedToken() {
-
-        return new IllegalArgumentException(new ErrorDetails(ErrorCode.VALIDATOR_BAD_FORMAT, "token", "is badly formatted"));
     }
 
     ///

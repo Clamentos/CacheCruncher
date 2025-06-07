@@ -1,30 +1,33 @@
 package io.github.clamentos.cachecruncher.business.services;
 
 ///
-import com.fasterxml.jackson.core.type.TypeReference;
-
-///.
 import io.github.clamentos.cachecruncher.business.simulation.SimulationFlag;
 import io.github.clamentos.cachecruncher.business.simulation.SimulationStatus;
 
 ///..
 import io.github.clamentos.cachecruncher.business.simulation.cache.Cache;
-import io.github.clamentos.cachecruncher.business.simulation.cache.CacheCommandArguments;
-import io.github.clamentos.cachecruncher.business.simulation.cache.CacheCommandType;
 import io.github.clamentos.cachecruncher.business.simulation.cache.Memory;
 import io.github.clamentos.cachecruncher.business.simulation.cache.SystemMemory;
 
 ///..
+import io.github.clamentos.cachecruncher.business.simulation.cache.commands.CacheCommand;
+import io.github.clamentos.cachecruncher.business.simulation.cache.commands.CacheCommandType;
+import io.github.clamentos.cachecruncher.business.simulation.cache.commands.CacheCommandTypeA;
+import io.github.clamentos.cachecruncher.business.simulation.cache.commands.CacheCommandTypeB;
+import io.github.clamentos.cachecruncher.business.simulation.cache.commands.CacheCommandTypeC;
+
+///..
 import io.github.clamentos.cachecruncher.business.simulation.event.EventManager;
+
+///..
+import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
 
 ///..
 import io.github.clamentos.cachecruncher.persistence.daos.CacheTraceDao;
 
 ///..
 import io.github.clamentos.cachecruncher.persistence.entities.CacheTrace;
-
-///..
-import io.github.clamentos.cachecruncher.utility.JsonMapper;
+import io.github.clamentos.cachecruncher.persistence.entities.CacheTraceBody;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.report.CacheSimulationRootReportDto;
@@ -34,12 +37,8 @@ import io.github.clamentos.cachecruncher.web.dtos.report.SimulationReport;
 import io.github.clamentos.cachecruncher.web.dtos.simulation.CacheConfigurationDto;
 import io.github.clamentos.cachecruncher.web.dtos.simulation.MemoryConfigurationDto;
 
-///..
-import io.github.clamentos.cachecruncher.web.dtos.trace.CacheTraceBodyDto;
-
 ///.
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -53,9 +52,6 @@ import lombok.extern.slf4j.Slf4j;
 
 ///.
 import org.springframework.beans.factory.annotation.Autowired;
-
-///..
-import org.springframework.dao.DataAccessException;
 
 ///..
 import org.springframework.scheduling.annotation.Async;
@@ -72,19 +68,12 @@ public class CacheSimulationService {
 
     ///
     private final CacheTraceDao cacheTraceDao;
-    private final JsonMapper jsonMapper;
-
-    ///..
-    private final TypeReference<CacheTraceBodyDto> cacheTraceBodyDtoType;
 
     ///
     @Autowired
-    public CacheSimulationService(final CacheTraceDao cacheTraceDao, final JsonMapper jsonMapper) {
+    public CacheSimulationService(final CacheTraceDao cacheTraceDao) {
 
         this.cacheTraceDao = cacheTraceDao;
-        this.jsonMapper = jsonMapper;
-
-        cacheTraceBodyDtoType = new TypeReference<>(){};
     }
 
     ///
@@ -105,7 +94,7 @@ public class CacheSimulationService {
             cacheTrace = cacheTraceDao.selectById(traceId);
         }
 
-        catch(final DataAccessException exc) {
+        catch(final DatabaseException exc) {
 
             log.error("{}: {}", exc.getClass().getSimpleName(), exc.getMessage());
             return CompletableFuture.completedFuture(new SimulationReport<>(SimulationStatus.UCATEGORIZED, null));
@@ -115,7 +104,7 @@ public class CacheSimulationService {
 
         if(cacheTrace != null) {
 
-            final CacheTraceBodyDto trace = jsonMapper.deserialize(cacheTrace.getData(), cacheTraceBodyDtoType);
+            final CacheTraceBody trace = cacheTrace.getTrace();
 
             for(final CacheConfigurationDto cacheConfiguration : cacheConfigurations) {
 
@@ -131,17 +120,10 @@ public class CacheSimulationService {
         return CompletableFuture.completedFuture(new SimulationReport<>(SimulationStatus.OK, rootReports));
     }
 
-    ///..
-    public CacheCommandArguments parseReadWritePrefetch(final String command) {
-
-        final String[] components = command.split(" ");
-        return new CacheCommandArguments(Integer.parseInt(components[0].substring(1)), Long.parseLong(components[1], 16));
-    }
-
     ///.
     private Memory buildHierarchy(final MemoryConfigurationDto memoryConfiguration, final EventManager eventManager) {
 
-        if(memoryConfiguration instanceof CacheConfigurationDto cacheConfiguration) {
+        if(memoryConfiguration instanceof final CacheConfigurationDto cacheConfiguration) {
 
             return new Cache(
 
@@ -157,11 +139,7 @@ public class CacheSimulationService {
 
         else {
 
-            return new SystemMemory(
-
-                memoryConfiguration.getAccessTime(),
-                eventManager
-            );
+            return new SystemMemory(memoryConfiguration.getAccessTime(), eventManager);
         }
     }
 
@@ -170,39 +148,35 @@ public class CacheSimulationService {
 
         final long beginTimestamp,
         final CacheConfigurationDto cacheConfiguration,
-        final CacheTraceBodyDto trace,
+        final CacheTraceBody trace,
         final Set<SimulationFlag> simulationFlags,
         final Map<String, CacheSimulationRootReportDto> rootReports
     ) {
 
+        final Cache cache = (Cache)this.buildHierarchy(cacheConfiguration, new EventManager());
         long cycleCounter = 0;
         long commandCounter = 0;
-        final Cache cache = (Cache)this.buildHierarchy(cacheConfiguration, new EventManager());
 
-        for(final String command : trace.getBody()) {
+        for(final CacheCommand command : trace.getBody()) {
 
-            final CacheCommandType commandType = CacheCommandType.determineType(command);
+            final CacheCommandType commandType = command.getType();
 
             if(commandType != CacheCommandType.REPEAT) {
 
-                cycleCounter += this.doSimpleCommand(commandType, command, cache, simulationFlags);
+                cycleCounter += this.doSimpleCommand(command, cache, simulationFlags);
                 commandCounter += this.updateCommandCounter(commandType);
             }
 
             else {
 
-                final String[] commandComponents = command.split("#");
-                final int repetitions = Integer.parseInt(commandComponents[1]);
-                final List<String> section = trace.getSections().get(commandComponents[2]);
+                final CacheCommandTypeC commandTypeC = (CacheCommandTypeC)command;
 
-                for(int i = 0; i < repetitions; i++) {
+                for(int i = 0; i < commandTypeC.getRepeats(); i++) {
 
-                    final CacheCommandType sectionCommandType = CacheCommandType.determineType(command);
+                    for(final CacheCommand sectionCommand : trace.getSections().get(commandTypeC.getSectionName())) {
 
-                    for(final String sectionCommand : section) {
-
-                        cycleCounter += this.doSimpleCommand(sectionCommandType, sectionCommand, cache, simulationFlags);
-                        commandCounter += this.updateCommandCounter(commandType);
+                        cycleCounter += this.doSimpleCommand(sectionCommand, cache, simulationFlags);
+                        commandCounter += this.updateCommandCounter(sectionCommand.getType());
                     }
                 }
             }
@@ -223,41 +197,58 @@ public class CacheSimulationService {
     ///..
     private long doSimpleCommand(
 
-        final CacheCommandType commandType,
-        final String command,
+        final CacheCommand command,
         final Cache cache,
         final Set<SimulationFlag> simulationFlags
     ) {
 
+        final CacheCommandType commandType = command.getType();
+        long cycleCounter = 0L;
+
         switch(commandType) {
 
-            case READ, WRITE: return this.doReadWritePrefetch(commandType, command, cache);
+            case READ, WRITE: cycleCounter = this.doReadWritePrefetch((CacheCommandTypeB)command, cache); break;
 
-            case PREFETCH: return simulationFlags.contains(SimulationFlag.IGNORE_PREFETCHES) ? 0L : this.doReadWritePrefetch(commandType, command, cache);
+            case PREFETCH:
 
-            case FLUSH: return cache.flush();
-            case INVALIDATE: return cache.invalidate(Integer.parseInt(command.substring(2)));
-            case NOOP: return simulationFlags.contains(SimulationFlag.IGNORE_NOOPS) ? 0L : cache.noop(this.parseNoop(command));
+                if(!simulationFlags.contains(SimulationFlag.IGNORE_PREFETCHES)) {
 
-            default: return 0L;
+                    cycleCounter = this.doReadWritePrefetch((CacheCommandTypeB)command, cache);
+                }
+
+            break;
+
+            case FLUSH: cycleCounter = cache.flush(); break;
+            case INVALIDATE: cycleCounter = cache.invalidate(((CacheCommandTypeB)command).getValue()); break;
+
+            case NOOP:
+            
+                if(!simulationFlags.contains(SimulationFlag.IGNORE_NOOPS)) {
+
+                    cycleCounter = cache.noop(((CacheCommandTypeA)command).getSize());
+                }
+
+            break;
+
+            default: cycleCounter = 0L; break;
         }
+
+        return cycleCounter;
     }
 
     ///..
-    private long doReadWritePrefetch(final CacheCommandType commandType, final String command, final Cache cache) {
+    private long doReadWritePrefetch(final CacheCommandTypeB command, final Cache cache) {
 
         long cycleCounter = 0L;
-        final CacheCommandArguments arguments = this.parseReadWritePrefetch(command);
 
-        for(int i = 0; i < arguments.getSize(); i++) {
+        for(int i = 0; i < command.getSize(); i++) {
 
-            final long address = arguments.getAddress() + i;
+            final long address = command.getValue() + i;
 
-            switch(commandType) {
+            switch(command.getType()) {
 
                 case READ: cycleCounter += cache.read(address); break;
                 case WRITE: cycleCounter += cache.write(address); break;
-
                 default: cycleCounter += cache.prefetch(address); break;
             }
         }
@@ -269,13 +260,6 @@ public class CacheSimulationService {
     private long updateCommandCounter(final CacheCommandType commandType) {
 
         return (commandType == CacheCommandType.READ || commandType == CacheCommandType.WRITE) ? 1L : 0L;
-    }
-
-    ///..
-    private long parseNoop(final String command) {
-
-        if(command.length() == 1) return 1L;
-        return Long.parseLong(command.substring(1));
     }
 
     ///

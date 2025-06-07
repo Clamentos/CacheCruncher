@@ -1,6 +1,9 @@
 package io.github.clamentos.cachecruncher.persistence.daos;
 
 ///
+import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
+
+///..
 import io.github.clamentos.cachecruncher.persistence.entities.Metric;
 
 ///.
@@ -19,9 +22,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 
 ///..
-import org.springframework.dao.DataAccessException;
-
-///..
 import org.springframework.jdbc.core.JdbcTemplate;
 
 ///..
@@ -37,9 +37,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class MetricDao extends Dao {
 
     ///
-    private static final String INSERT_SQL = "INSERT INTO metric (created_at,second,endpoint,status,data) values (?,?,?,?,?)";
+    private static final String INSERT_SQL = "INSERT INTO metric (created_at,second,endpoint,data,status) values (?,?,?,?,?)";
 
-    private static final String SELECT_SQL = "SELECT id,createdAt,second,endpoint,status,data FROM metric WHERE created_at > ? and created_at BETWEEN ? AND ? LIMIT ?";
+    private static final String SELECT_SQL = "SELECT id,createdAt,second,endpoint,data,status FROM metric WHERE created_at > ? and created_at BETWEEN ? AND ? LIMIT ?";
 
     private static final String DELETE_SQL = "DELETE FROM metric WHERE created_at BETWEEN ? and ?";
 
@@ -51,53 +51,59 @@ public class MetricDao extends Dao {
     }
 
     ///
-    @Transactional
-    public void insert(final Collection<Metric> metrics) throws DataAccessException {
+    @Transactional(rollbackFor = DatabaseException.class)
+    public void insert(final Collection<Metric> metrics) throws DatabaseException {
 
         if(!metrics.isEmpty()) {
 
-            super.getJdbcTemplate().batchUpdate(INSERT_SQL, metrics, super.getBatchSize(), (preparedStatement, metric) -> {
+            super.wrap(() ->
 
-                preparedStatement.setLong(1, metric.getCreatedAt());
-                preparedStatement.setInt(2, metric.getSecond());
-                preparedStatement.setString(3, metric.getEndpoint());
-                preparedStatement.setShort(4, metric.getStatus());
-                preparedStatement.setString(5, metric.getData());
-            });
+                super.getJdbcTemplate().batchUpdate(INSERT_SQL, metrics, super.getBatchSize(), (preparedStatement, metric) -> {
+
+                    preparedStatement.setLong(1, metric.getCreatedAt());
+                    preparedStatement.setInt(2, metric.getSecond());
+                    preparedStatement.setString(3, metric.getEndpoint());
+                    preparedStatement.setString(4, metric.getData());
+                    preparedStatement.setShort(5, metric.getStatus());
+                })
+            );
         }
     }
 
     ///..
     public List<Metric> selectMetricsByFilter(
         
-        final Long createdAtStart,
-        final Long createdAtEnd,
         final long lastTimestamp,
-        final int count
+        final int count,
+        final long createdAtStart,
+        final long createdAtEnd
 
-    ) throws DataAccessException {
+    ) throws DatabaseException {
 
-        return super.getJdbcTemplate().query(
+        return super.wrap(() ->
 
-            SELECT_SQL,
+            super.getJdbcTemplate().query(
 
-            preparedStatement -> {
+                SELECT_SQL,
 
-                preparedStatement.setLong(1, lastTimestamp);
-                preparedStatement.setLong(2, createdAtStart);
-                preparedStatement.setLong(3, createdAtEnd);
-                preparedStatement.setLong(4, count);
-            },
+                preparedStatement -> {
 
-            this::mapResultSet
+                    preparedStatement.setLong(1, lastTimestamp);
+                    preparedStatement.setLong(2, createdAtStart);
+                    preparedStatement.setLong(3, createdAtEnd);
+                    preparedStatement.setLong(4, count);
+                },
+
+                this::mapResultSet
+            )
         );
     }
 
     ///..
-    @Transactional
-    public int delete(final long createdAtStart, final long createdAtEnd) throws DataAccessException {
+    @Transactional(rollbackFor = DatabaseException.class)
+    public int delete(final long createdAtStart, final long createdAtEnd) throws DatabaseException {
 
-        return super.getJdbcTemplate().update(DELETE_SQL, createdAtStart, createdAtEnd);
+        return super.wrap(() -> super.getJdbcTemplate().update(DELETE_SQL, createdAtStart, createdAtEnd));
     }
 
     ///.
@@ -113,8 +119,8 @@ public class MetricDao extends Dao {
                 resultSet.getLong(2),
                 resultSet.getInt(3),
                 resultSet.getString(4),
-                resultSet.getShort(5),
-                resultSet.getString(6)
+                resultSet.getString(5),
+                resultSet.getShort(6)
             ));
         }
 

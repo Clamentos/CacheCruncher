@@ -9,7 +9,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class MemorySubInfo {
+public final class MemorySubInfoDto {
 
     ///
     private final long initial;

@@ -12,7 +12,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class ThreadsInfo {
+public final class ThreadsInfoDto {
 
     ///
     private final int platformThreadCount;

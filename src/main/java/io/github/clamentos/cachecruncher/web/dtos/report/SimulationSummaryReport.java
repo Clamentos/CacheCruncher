@@ -12,10 +12,10 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class SimulationSummaryReport<R extends RootReport> {
+public final class SimulationSummaryReport<R extends RootReportDto> {
 
     ///
-    private final boolean failed;
+    private final boolean hasErrors;
     private final Map<Long, SimulationReport<R>> summary;
 
     ///

@@ -22,9 +22,9 @@ public abstract class DepthLimitedDto {
     ///
     protected DepthLimitedDto(final Class<?> childClass, final int limit) {
 
-        long threadId = Thread.currentThread().threadId();
+        final long threadId = Thread.currentThread().threadId();
 
-        int depth = depthCounters
+        final int depth = depthCounters
 
             .computeIfAbsent(threadId, _ -> new ConcurrentHashMap<>())
             .computeIfAbsent(childClass, _ -> new MutableInt())
@@ -47,7 +47,7 @@ public abstract class DepthLimitedDto {
     ///.
     private void clear(final Class<?> childClass, final long threadId) {
 
-        Map<Class<?>, MutableInt> classes = depthCounters.get(threadId);
+        final Map<Class<?>, MutableInt> classes = depthCounters.get(threadId);
 
         classes.remove(childClass);
         if(classes.isEmpty()) depthCounters.remove(threadId);

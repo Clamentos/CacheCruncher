@@ -15,10 +15,10 @@ import org.springframework.http.HttpStatus;
 @Getter
 
 ///
-public final class ResponsesInfo {
+public final class ResponsesInfoDto {
 
     ///
-    private final Map<String, Integer> uriIdMap;
+    private final Map<String, Integer> uriIdMappings;
     private final Map<Integer, Map<Integer, Map<HttpStatus, Map<String, Integer>>>> metrics;
 
     ///

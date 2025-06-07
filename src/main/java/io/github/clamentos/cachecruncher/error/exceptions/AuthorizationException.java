@@ -1,15 +1,12 @@
 package io.github.clamentos.cachecruncher.error.exceptions;
 
 ///
-import io.github.clamentos.cachecruncher.error.ErrorDetails;
-
-///
-public class AuthorizationException extends SecurityException {
+public final class AuthorizationException extends CacheCruncherException {
 
     ///
-    public AuthorizationException(final ErrorDetails errorDetails) {
+    public AuthorizationException(Throwable cause) {
 
-        super(errorDetails);
+        super(cause);
     }
 
     ///

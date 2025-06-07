@@ -6,8 +6,10 @@ import io.github.clamentos.cachecruncher.business.services.UserService;
 ///..
 import io.github.clamentos.cachecruncher.error.exceptions.AuthenticationException;
 import io.github.clamentos.cachecruncher.error.exceptions.AuthorizationException;
+import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
 import io.github.clamentos.cachecruncher.error.exceptions.EntityAlreadyExistsException;
 import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundException;
+import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
 
 ///..
 import io.github.clamentos.cachecruncher.persistence.entities.Session;
@@ -15,6 +17,8 @@ import io.github.clamentos.cachecruncher.persistence.entities.User;
 
 ///..
 import io.github.clamentos.cachecruncher.utility.Pair;
+
+///..
 import io.github.clamentos.cachecruncher.web.dtos.AuthDto;
 
 ///.
@@ -24,15 +28,9 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
-import org.springframework.dao.DataAccessException;
-
-///..
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-
-///..
-import org.springframework.mail.MailException;
 
 ///..
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -65,16 +63,23 @@ public class UserController {
 
     ///
     @PostMapping(path = "/register", produces = "text/plain", consumes = "application/json")
-    public ResponseEntity<String> register(@RequestBody final AuthDto authDto)
-    throws DataAccessException, EntityAlreadyExistsException, IllegalArgumentException, MailException {
+    public ResponseEntity<String> register(@RequestBody final AuthDto auth)
+    throws DatabaseException, EntityAlreadyExistsException, ValidationException {
 
-        return ResponseEntity.ok(userService.register(authDto));
+        return ResponseEntity.ok(userService.register(auth));
+    }
+
+    ///..
+    @PostMapping(path = "/resend", produces = "text/plain", consumes = "application/json")
+    public ResponseEntity<String> resendVerificationEmail(@RequestBody final String email) {
+
+        return ResponseEntity.ok(userService.resendVerificationEmail(email));
     }
 
     ///..
     @GetMapping(path = "/confirm-email")
     public ResponseEntity<Void> confirmEmail(@RequestParam final String token)
-    throws DataAccessException, EntityNotFoundException, IllegalArgumentException, IllegalStateException {
+    throws AuthenticationException, DatabaseException, EntityNotFoundException, ValidationException {
 
         userService.confirmEmail(token);
         return ResponseEntity.ok().build();
@@ -87,7 +92,7 @@ public class UserController {
         @RequestBody final AuthDto authDto,
         @RequestHeader(name = "User-Agent") final String device
 
-    ) throws AuthenticationException, DataAccessException {
+    ) throws AuthenticationException, AuthorizationException, DatabaseException, ValidationException {
 
         final Pair<User, Session> loginResult =  userService.login(authDto, device);
 
@@ -106,7 +111,7 @@ public class UserController {
         @RequestAttribute(name = "session") final Session session,
         @RequestHeader(name = "User-Agent") final String device
 
-    ) throws AuthenticationException, AuthorizationException, DataAccessException {
+    ) throws AuthenticationException, AuthorizationException, DatabaseException {
 
         final Session refreshedSession = userService.refresh(session, device);
 
@@ -121,7 +126,7 @@ public class UserController {
     ///..
     @DeleteMapping(path = "/logout")
     public ResponseEntity<Void> logout(@RequestAttribute(name = "session") final Session session)
-    throws AuthenticationException, DataAccessException {
+    throws AuthenticationException, DatabaseException {
 
         userService.logout(session);
         return ResponseEntity.ok().build();
@@ -131,13 +136,13 @@ public class UserController {
     @DeleteMapping(path = "/logout-all")
     public ResponseEntity<Void> logoutAll(@RequestAttribute(name = "session") final Session session) {
 
-        userService.logoutAll(session);
+        userService.logoutAll(session.getUserId());
         return ResponseEntity.ok().build();
     }
 
     ///..
-    @GetMapping
-    public ResponseEntity<List<User>> getAll() throws DataAccessException {
+    @GetMapping(produces = "application/json")
+    public ResponseEntity<List<User>> getAll() throws DatabaseException {
 
         return ResponseEntity.ok(userService.getAll());
     }
@@ -145,7 +150,7 @@ public class UserController {
     ///..
     @PatchMapping
     public ResponseEntity<Void> updatePrivilege(@RequestParam final long userId, @RequestParam final boolean admin)
-    throws DataAccessException, EntityNotFoundException {
+    throws DatabaseException, EntityNotFoundException {
 
         userService.updatePrivilege(userId, admin);
         return ResponseEntity.ok().build();
@@ -154,7 +159,7 @@ public class UserController {
     ///..
     @DeleteMapping
     public ResponseEntity<Void> delete(@RequestParam final long userId, @RequestAttribute(name = "session") final Session session)
-    throws AuthorizationException, DataAccessException, EntityNotFoundException {
+    throws AuthenticationException, AuthorizationException, DatabaseException, EntityNotFoundException {
 
         userService.delete(userId, session);
         return ResponseEntity.ok().build();

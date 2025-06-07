@@ -121,6 +121,7 @@
 						-XX:+UseTransparentHugePages
 						-XX:+UnlockExperimentalVMOptions
 						-XX:+UseCompactObjectHeaders
+						<!-- -XX:-StackTraceInThrowable -->
 					</jvmArguments>
 				</configuration>
 			</plugin>

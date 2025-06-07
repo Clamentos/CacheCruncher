@@ -1,6 +1,9 @@
 package io.github.clamentos.cachecruncher.persistence.daos;
 
 ///
+import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
+
+///..
 import io.github.clamentos.cachecruncher.monitoring.logging.LogLevel;
 
 ///..
@@ -23,9 +26,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.core.env.Environment;
-
-///..
-import org.springframework.dao.DataAccessException;
 
 ///..
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -58,19 +58,22 @@ public class LogDao extends Dao {
     }
 
     ///
-    @Transactional
-    public void insert(final Collection<Log> logs) throws DataAccessException {
+    @Transactional(rollbackFor = DatabaseException.class)
+    public void insert(final Collection<Log> logs) throws DatabaseException {
 
         if(!logs.isEmpty()) {
 
-            super.getJdbcTemplate().batchUpdate(INSERT_SQL, logs, super.getBatchSize(), (preparedStatement, log) -> {
+            super.wrap(() -> 
 
-                preparedStatement.setLong(1, log.getCreatedAt());
-                preparedStatement.setString(2, log.getThread());
-                preparedStatement.setString(3, log.getLogger());
-                preparedStatement.setString(4, log.getMessage());
-                preparedStatement.setString(5, log.getLevel().toString());
-            });
+                super.getJdbcTemplate().batchUpdate(INSERT_SQL, logs, super.getBatchSize(), (preparedStatement, log) -> {
+
+                    preparedStatement.setLong(1, log.getCreatedAt());
+                    preparedStatement.setString(2, log.getThread());
+                    preparedStatement.setString(3, log.getLogger());
+                    preparedStatement.setString(4, log.getMessage());
+                    preparedStatement.setString(5, log.getLevel().toString());
+                })
+            );
         }
     }
 
@@ -86,67 +89,69 @@ public class LogDao extends Dao {
         final long lastTimestamp,
         final int count
 
-    ) throws DataAccessException, NullPointerException {
+    ) throws DatabaseException {
 
-        return super.getJdbcTemplate().query(
+        return super.wrap(() ->
 
-            SELECT_SQL,
+            super.getJdbcTemplate().query(
 
-            preparedStatement -> {
+                SELECT_SQL,
 
-                preparedStatement.setLong(1, lastTimestamp);
-                preparedStatement.setLong(2, createdAtStart);
-                preparedStatement.setLong(3, createdAtEnd);
+                preparedStatement -> {
 
-                int index = 4;
-                LogLevel lastLevel = null;
+                    preparedStatement.setLong(1, lastTimestamp);
+                    preparedStatement.setLong(2, createdAtStart);
+                    preparedStatement.setLong(3, createdAtEnd);
 
-                for(LogLevel level : levels) {
+                    int index = 4;
+                    LogLevel lastLevel = null;
 
-                    preparedStatement.setString(index++, level.toString());
-                    lastLevel = level;
-                }
+                    for(LogLevel level : levels) {
 
-                while(index < 9) {
+                        preparedStatement.setString(index++, level.toString());
+                        lastLevel = level;
+                    }
 
-                    preparedStatement.setString(index++, lastLevel.toString());
-                }
+                    while(index < 9) {
 
-                preparedStatement.setString(9, threadLike);
-                preparedStatement.setString(10, loggerLike);
-                preparedStatement.setString(11, messageLike);
-                preparedStatement.setLong(12, count);
-            },
+                        preparedStatement.setString(index++, lastLevel.toString());
+                    }
 
-            this::mapResultSet
+                    preparedStatement.setString(9, threadLike);
+                    preparedStatement.setString(10, loggerLike);
+                    preparedStatement.setString(11, messageLike);
+                    preparedStatement.setLong(12, count);
+                },
+
+                this::mapResultSet
+            )
         );
     }
 
     ///..
-    public Map<LogLevel, Long> countByLevel() throws DataAccessException {
+    public Map<LogLevel, Long> countByLevel() throws DatabaseException {
 
-        return super.getJdbcTemplate().query(COUNT_SQL, resultSet -> {
+        return super.wrap(() ->
+        
+            super.getJdbcTemplate().query(COUNT_SQL, resultSet -> {
 
-            final Map<LogLevel, Long> logs = new EnumMap<>(LogLevel.class);
+                final Map<LogLevel, Long> logs = new EnumMap<>(LogLevel.class);
 
-            while(resultSet.next()) {
+                while(resultSet.next()) {
 
-                logs.put(
+                    logs.put(LogLevel.valueOf(resultSet.getString(1)), resultSet.getLong(2));
+                }
 
-                    LogLevel.valueOf(resultSet.getString(1)),
-                    resultSet.getLong(2)
-                );
-            }
-
-            return logs;
-        });
+                return logs;
+            })
+        );
     }
 
     ///..
-    @Transactional
-    public int delete(final long createdAtStart, final long createdAtEnd) throws DataAccessException {
+    @Transactional(rollbackFor = DatabaseException.class)
+    public int delete(final long createdAtStart, final long createdAtEnd) throws DatabaseException {
 
-        return super.getJdbcTemplate().update(DELETE_SQL, createdAtStart, createdAtEnd);
+        return super.wrap(() -> super.getJdbcTemplate().update(DELETE_SQL, createdAtStart, createdAtEnd));
     }
 
     ///.

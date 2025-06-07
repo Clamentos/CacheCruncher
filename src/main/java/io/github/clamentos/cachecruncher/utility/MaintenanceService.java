@@ -1,6 +1,9 @@
 package io.github.clamentos.cachecruncher.utility;
 
 ///
+import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
+
+///..
 import io.github.clamentos.cachecruncher.persistence.daos.LogDao;
 import io.github.clamentos.cachecruncher.persistence.daos.MetricDao;
 
@@ -15,7 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.core.env.Environment;
-import org.springframework.dao.DataAccessException;
+
 ///..
 import org.springframework.scheduling.annotation.Scheduled;
 
@@ -65,7 +68,7 @@ public class MaintenanceService {
             log.info("Maintenance task completed, {} logs deleted, {} metrics deleted", deletedLogs, deletedMetrics);
         }
 
-        catch(final DataAccessException exc) {
+        catch(final DatabaseException exc) {
 
             log.error("Could not perform maintenance, will abort the job", exc);
         }

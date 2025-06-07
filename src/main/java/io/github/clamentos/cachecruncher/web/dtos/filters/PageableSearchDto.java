@@ -11,7 +11,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public sealed class PageableSearch permits ResponseInfoSearchFilter, LogSearchFilter {
+public sealed class PageableSearchDto permits ResponseInfoSearchFilterDto, LogSearchFilterDto {
 
     ///
     private final Long lastTimestamp;
@@ -19,7 +19,7 @@ public sealed class PageableSearch permits ResponseInfoSearchFilter, LogSearchFi
 
     ///
     @JsonCreator
-    public PageableSearch(@JsonProperty("lastTimestamp") final Long lastTimestamp, @JsonProperty("count") final Integer count) {
+    public PageableSearchDto(@JsonProperty("lastTimestamp") final Long lastTimestamp, @JsonProperty("count") final Integer count) {
 
         this.lastTimestamp = lastTimestamp;
         this.count = count;

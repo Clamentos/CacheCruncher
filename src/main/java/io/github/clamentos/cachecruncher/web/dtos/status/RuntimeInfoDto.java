@@ -13,7 +13,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class RuntimeInfo {
+public final class RuntimeInfoDto {
 
     ///
     private final long startTime;

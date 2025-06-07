@@ -34,6 +34,7 @@ public final class CacheConfigurationDto extends MemoryConfigurationDto {
     public CacheConfigurationDto(
 
         @JsonProperty("accessTime") final Long accessTime,
+
         @JsonProperty("name") final String name,
         @JsonProperty("numSetsExp") final Integer numSetsExp,
         @JsonProperty("lineSizeExp") final Integer lineSizeExp,

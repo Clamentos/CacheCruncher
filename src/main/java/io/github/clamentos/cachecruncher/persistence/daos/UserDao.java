@@ -1,6 +1,9 @@
 package io.github.clamentos.cachecruncher.persistence.daos;
 
 ///
+import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
+
+///..
 import io.github.clamentos.cachecruncher.persistence.entities.User;
 
 ///.
@@ -17,9 +20,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.core.env.Environment;
-
-///..
-import org.springframework.dao.DataAccessException;
 
 ///..
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -58,107 +58,127 @@ public class UserDao extends Dao {
     }
 
     ///
-    @Transactional
-    public void insert(final User user) throws DataAccessException {
+    @Transactional(rollbackFor = DatabaseException.class)
+    public void insert(final User user) throws DatabaseException {
 
         final int bigintTypeNumber = JDBCType.BIGINT.getVendorTypeNumber();
 
-        super.getJdbcTemplate().update(INSERT_SQL, preparedStatement -> {
+        super.wrap(() ->
 
-            preparedStatement.setObject(1, user.getLockedUntil(), bigintTypeNumber);
-            preparedStatement.setLong(2, user.getCreatedAt());
-            preparedStatement.setObject(3, user.getValidatedAt(), bigintTypeNumber);
-            preparedStatement.setString(4, user.getEmail());
-            preparedStatement.setString(5, user.getPassword());
-            preparedStatement.setShort(6, user.getFailedAccesses());
-            preparedStatement.setBoolean(7, user.isAdmin());
-        });
+            super.getJdbcTemplate().update(INSERT_SQL, preparedStatement -> {
+
+                preparedStatement.setObject(1, user.getLockedUntil(), bigintTypeNumber);
+                preparedStatement.setLong(2, user.getCreatedAt());
+                preparedStatement.setObject(3, user.getValidatedAt(), bigintTypeNumber);
+                preparedStatement.setString(4, user.getEmail());
+                preparedStatement.setString(5, user.getPassword());
+                preparedStatement.setShort(6, user.getFailedAccesses());
+                preparedStatement.setBoolean(7, user.isAdmin());
+            })
+        );
     }
 
     ///..
-    public boolean exists(final String username) throws DataAccessException {
+    public boolean exists(final String username) throws DatabaseException {
 
-        final Boolean exists = super.getJdbcTemplate().query(
+        final Boolean exists = super.wrap(() ->
 
-            EXISTS_SQL,
-            preparedStatement -> preparedStatement.setString(1, username),
-            this::mapBoolean
+            super.getJdbcTemplate().query(
+
+                EXISTS_SQL,
+                preparedStatement -> preparedStatement.setString(1, username),
+                this::mapBoolean
+            )
         );
 
         return exists != null && exists.booleanValue();
     }
 
     ///..
-    public Boolean getPrivilege(final long id) throws DataAccessException {
+    public Boolean getPrivilege(final long id) throws DatabaseException {
 
-        return super.getJdbcTemplate().query(
+        return super.wrap(() ->
 
-            SELECT_PRIVILEGE_SQL,
-            preparedStatement -> preparedStatement.setLong(1, id),
-            this::mapBoolean
+            super.getJdbcTemplate().query(
+
+                SELECT_PRIVILEGE_SQL,
+                preparedStatement -> preparedStatement.setLong(1, id),
+                this::mapBoolean
+            )
         );
     }
 
     ///..
-    public User selectByEmail(final String username) throws DataAccessException {
+    public User selectByEmail(final String username) throws DatabaseException {
 
-        return super.getJdbcTemplate().query(
+        return super.wrap(() ->
 
-            SELECT_BY_EMAIL_SQL,
-            preparedStatement -> preparedStatement.setString(1, username),
-            this::mapResultSetSingle
+            super.getJdbcTemplate().query(
+
+                SELECT_BY_EMAIL_SQL,
+                preparedStatement -> preparedStatement.setString(1, username),
+                this::mapResultSetSingle
+            )
         );
     }
 
     ///..
-    public List<User> selectAll() throws DataAccessException {
+    public List<User> selectAll() throws DatabaseException {
 
-        return super.getJdbcTemplate().query(SELECT_ALL_SQL, _ -> {}, this::mapResultSet);
+        return super.wrap(() -> super.getJdbcTemplate().query(SELECT_ALL_SQL, _ -> {}, this::mapResultSet));
     }
 
     ///..
-    @Transactional
-    public void updateForLogin(final long id, final Long lockedUntil, final short failedAccesses) throws DataAccessException {
+    @Transactional(rollbackFor = DatabaseException.class)
+    public void updateForLogin(final long id, final Long lockedUntil, final short failedAccesses) throws DatabaseException {
 
-        super.getJdbcTemplate().update(UPDATE_SQL, preparedStatement -> {
+        super.wrap(() ->
 
-            if(lockedUntil == null) preparedStatement.setNull(1, JDBCType.BIGINT.getVendorTypeNumber());
-            else preparedStatement.setLong(1, lockedUntil);
+            super.getJdbcTemplate().update(UPDATE_SQL, preparedStatement -> {
 
-            preparedStatement.setShort(2, failedAccesses);
-            preparedStatement.setLong(3, id);
-        });
+                if(lockedUntil == null) preparedStatement.setNull(1, JDBCType.BIGINT.getVendorTypeNumber());
+                else preparedStatement.setLong(1, lockedUntil);
+
+                preparedStatement.setShort(2, failedAccesses);
+                preparedStatement.setLong(3, id);
+            })
+        );
     }
 
     ///..
-    public boolean updateForEmailValidation(final String email, final long validatedAt)
-    throws DataAccessException {
+    public boolean updateForEmailValidation(final String email, final long validatedAt) throws DatabaseException {
 
-        final int rowsAffected = super.getJdbcTemplate().update(UPDATE_EMAIL_VALID_SQL, preparedStatement -> {
+        final int rowsAffected = super.wrap(() ->
 
-            preparedStatement.setLong(1, validatedAt);
-            preparedStatement.setString(2, email);
-        });
+            super.getJdbcTemplate().update(UPDATE_EMAIL_VALID_SQL, preparedStatement -> {
+
+                preparedStatement.setLong(1, validatedAt);
+                preparedStatement.setString(2, email);
+            })
+        );
 
         return rowsAffected > 0;
     }
 
     ///..
-    @Transactional
-    public boolean updatePrivilege(final long id, final boolean privilege) throws DataAccessException {
+    @Transactional(rollbackFor = DatabaseException.class)
+    public boolean updatePrivilege(final long id, final boolean privilege) throws DatabaseException {
 
-        final int rowsAffected = super.getJdbcTemplate().update(UPDATE_PRIVILEGE_SQL, preparedStatement -> {
+        final int rowsAffected = super.wrap(() ->
 
-            preparedStatement.setBoolean(1, privilege);
-            preparedStatement.setLong(2, id);
-        });
+            super.getJdbcTemplate().update(UPDATE_PRIVILEGE_SQL, preparedStatement -> {
+
+                preparedStatement.setBoolean(1, privilege);
+                preparedStatement.setLong(2, id);
+            })
+        );
 
         return rowsAffected > 0;
     }
 
     ///..
-    @Transactional
-    public int delete(final long id) throws DataAccessException {
+    @Transactional(rollbackFor = DatabaseException.class)
+    public int delete(final long id) throws DatabaseException {
 
         return super.deleteWhereIdEquals("user", id);
     }
@@ -197,8 +217,8 @@ public class UserDao extends Dao {
             (Long)resultSet.getObject(4),
             resultSet.getString(5),
             mapPassword ? resultSet.getString(6) : null,
-            resultSet.getShort(7),
-            resultSet.getBoolean(8)
+            resultSet.getShort(mapPassword ? 7 : 6),
+            resultSet.getBoolean(mapPassword ? 8 : 7)
         );
     }
 

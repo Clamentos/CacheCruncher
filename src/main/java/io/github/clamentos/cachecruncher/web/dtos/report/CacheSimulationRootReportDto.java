@@ -10,7 +10,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class CacheSimulationRootReportDto extends RootReport {
+public final class CacheSimulationRootReportDto extends RootReportDto {
 
     ///
     private final double averageMemoryAccessTime;
@@ -22,6 +22,7 @@ public final class CacheSimulationRootReportDto extends RootReport {
         final SimulationStatus status,
         final long beginTimestamp,
         final long endTimestamp,
+
         final double averageMemoryAccessTime,
         final CacheSimulationReportDto report
     ) {

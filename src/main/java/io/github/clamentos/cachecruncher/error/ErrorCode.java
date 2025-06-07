@@ -38,7 +38,7 @@ public enum ErrorCode {
     NOT_ENOUGH_PRIVILEGES("?"),
     WRONG_PASSWORD("Wrong password"),
 
-    GENERIC("?"),                       // Generic error that can contain any.
+    GENERIC("?"),                       // Generic error that can contain any message.
     UNCATEGORIZED("Uncategorized");     // Default fallback.
 
     ///

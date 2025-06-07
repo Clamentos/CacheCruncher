@@ -1,15 +1,12 @@
 package io.github.clamentos.cachecruncher.error.exceptions;
 
 ///
-import io.github.clamentos.cachecruncher.error.ErrorDetails;
-
-///
-public class AuthenticationException extends SecurityException {
+public sealed class AuthenticationException extends CacheCruncherException permits WrongPasswordException {
 
     ///
-    public AuthenticationException(final ErrorDetails errorDetails) {
+    public AuthenticationException(Throwable cause) {
 
-        super(errorDetails);
+        super(cause);
     }
 
     ///

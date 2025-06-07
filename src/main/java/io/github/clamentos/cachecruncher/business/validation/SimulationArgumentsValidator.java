@@ -4,7 +4,11 @@ package io.github.clamentos.cachecruncher.business.validation;
 import io.github.clamentos.cachecruncher.business.simulation.replacement.ReplacementPolicyType;
 
 ///..
+import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
+
+///..
 import io.github.clamentos.cachecruncher.utility.BasicValidator;
+import io.github.clamentos.cachecruncher.utility.ErrorMessages;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.simulation.CacheConfigurationDto;
@@ -27,7 +31,7 @@ public class SimulationArgumentsValidator extends BasicValidator {
     private static final String REPLACEMENT_POLICY_TYPE_FIELD = ".replacementPolicyType";
 
     ///
-    public void validate(final CacheSimulationArgumentsDto simulationArgumentsDto) throws IllegalArgumentException {
+    public void validate(final CacheSimulationArgumentsDto simulationArgumentsDto) throws ValidationException {
 
         super.requireNotNull(simulationArgumentsDto, "DTO");
         final Set<Long> traceIds = simulationArgumentsDto.getTraceIds();
@@ -39,7 +43,7 @@ public class SimulationArgumentsValidator extends BasicValidator {
     }
 
     ///..
-    private void validateConfigurations(final Set<CacheConfigurationDto> cacheConfigurations) throws IllegalArgumentException {
+    private void validateConfigurations(final Set<CacheConfigurationDto> cacheConfigurations) throws ValidationException {
 
         int i = 0;
 
@@ -55,11 +59,11 @@ public class SimulationArgumentsValidator extends BasicValidator {
 
     ///..
     private void validateConfiguration(final MemoryConfigurationDto memoryConfiguration, final String prefix)
-    throws IllegalArgumentException {
+    throws ValidationException {
 
         super.requireNotNull(memoryConfiguration, prefix);
 
-        if(memoryConfiguration instanceof CacheConfigurationDto cacheConfiguration) {
+        if(memoryConfiguration instanceof final CacheConfigurationDto cacheConfiguration) {
 
             super.requireNotBlank(cacheConfiguration.getName(), prefix + ".name");
             super.requireBetween(cacheConfiguration.getAccessTime(), 0L, Long.MAX_VALUE, prefix + ".accessTime");
@@ -76,7 +80,7 @@ public class SimulationArgumentsValidator extends BasicValidator {
 
                 if(replacementPolicyType == ReplacementPolicyType.NOOP) {
 
-                    throw super.fail("Replacement policy type cannot be NOOP", prefix + REPLACEMENT_POLICY_TYPE_FIELD);
+                    throw super.fail(ErrorMessages.REPLACEMENT_NO_NOOP, prefix + REPLACEMENT_POLICY_TYPE_FIELD);
                 }
             }
 
@@ -84,7 +88,7 @@ public class SimulationArgumentsValidator extends BasicValidator {
 
                 if(replacementPolicyType != null && replacementPolicyType != ReplacementPolicyType.NOOP) {
 
-                    throw super.fail("Replacement policy must be NOOP", prefix + REPLACEMENT_POLICY_TYPE_FIELD);
+                    throw super.fail(ErrorMessages.REPLACEMENT_NOOP, prefix + REPLACEMENT_POLICY_TYPE_FIELD);
                 }
             }
 

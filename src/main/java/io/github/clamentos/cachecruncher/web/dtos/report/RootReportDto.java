@@ -12,7 +12,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public abstract sealed class RootReport permits CacheSimulationRootReportDto {
+public abstract sealed class RootReportDto permits CacheSimulationRootReportDto {
 
     ///
     private final SimulationStatus status;

@@ -4,6 +4,9 @@ package io.github.clamentos.cachecruncher.web.controllers;
 import io.github.clamentos.cachecruncher.business.services.CacheTraceService;
 
 ///..
+import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
+
+///..
 import io.github.clamentos.cachecruncher.web.dtos.report.CacheSimulationRootReportDto;
 import io.github.clamentos.cachecruncher.web.dtos.report.SimulationSummaryReport;
 
@@ -25,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 ///
 @RestController
-@RequestMapping(path = "cache-cruncher/simulation")
+@RequestMapping(path = "cache-cruncher")
 
 ///
 public class CacheSimulationController {
@@ -41,15 +44,15 @@ public class CacheSimulationController {
     }
 
     ///
-    @GetMapping(consumes = "application/json", produces = "application/json")
+    @GetMapping(path = "/cache-trace/simulation", consumes = "application/json", produces = "application/json")
     public ResponseEntity<SimulationSummaryReport<CacheSimulationRootReportDto>> simulate(
 
-        @RequestBody final CacheSimulationArgumentsDto cacheSimulationArgumentsDto
+        @RequestBody final CacheSimulationArgumentsDto cacheSimulationArguments
 
-    ) throws IllegalArgumentException {
+    ) throws ValidationException {
 
-        final SimulationSummaryReport<CacheSimulationRootReportDto> result = cacheTraceService.simulate(cacheSimulationArgumentsDto);
-        return ResponseEntity.status(result.isFailed() ? HttpStatus.PARTIAL_CONTENT : HttpStatus.OK).body(result);
+        final SimulationSummaryReport<CacheSimulationRootReportDto> result = cacheTraceService.simulate(cacheSimulationArguments);
+        return ResponseEntity.status(result.isHasErrors() ? HttpStatus.PARTIAL_CONTENT : HttpStatus.OK).body(result);
     }
 
     ///

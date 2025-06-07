@@ -107,7 +107,7 @@ public final class RequestsMetrics {
 
         while(currentSecond.get() == rolloverTime) {
 
-            // busy wait.
+            // busy wait (only when is rolling over).
             // should stay here for a very small amount of time, that is,
             // the time it takes for the scheduled task to set the direction.
         }

@@ -9,7 +9,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class SimulationStatusInfo {
+public final class SimulationStatusInfoDto {
 
     ///
     private final int queueSize;

@@ -29,11 +29,13 @@ public class AuthMappings {
         authenticationExcludedPaths = new HashSet<>();
 
         authenticationExcludedPaths.add("POST/cache-cruncher/user/register");
+        authenticationExcludedPaths.add("POST/cache-cruncher/user/resend");
         authenticationExcludedPaths.add("GET/cache-cruncher/user/confirm-email");
         authenticationExcludedPaths.add("POST/cache-cruncher/user/login");
 
         authorizationMappings = new HashMap<>();
 
+        authorizationMappings.put("POST/cache-cruncher/user/refresh", false);
         authorizationMappings.put("DELETE/cache-cruncher/user/logout", false);
         authorizationMappings.put("DELETE/cache-cruncher/user/logout-all", false);
         authorizationMappings.put("GET/cache-cruncher/user", true);

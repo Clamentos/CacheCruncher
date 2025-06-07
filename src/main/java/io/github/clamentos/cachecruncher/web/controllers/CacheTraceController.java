@@ -4,7 +4,9 @@ package io.github.clamentos.cachecruncher.web.controllers;
 import io.github.clamentos.cachecruncher.business.services.CacheTraceService;
 
 ///..
+import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
 import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundException;
+import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.trace.CacheTraceDto;
@@ -14,9 +16,6 @@ import java.util.List;
 
 ///.
 import org.springframework.beans.factory.annotation.Autowired;
-
-///..
-import org.springframework.dao.DataAccessException;
 
 ///..
 import org.springframework.http.ResponseEntity;
@@ -50,16 +49,15 @@ public class CacheTraceController {
 
     ///
     @PostMapping(consumes = "application/json")
-    public ResponseEntity<Void> create(@RequestBody final CacheTraceDto cacheTraceDto)
-    throws DataAccessException, IllegalArgumentException {
+    public ResponseEntity<Void> create(@RequestBody final CacheTraceDto cacheTrace) throws DatabaseException, ValidationException {
 
-        cacheTraceService.create(cacheTraceDto);
+        cacheTraceService.create(cacheTrace);
         return ResponseEntity.ok().build();
     }
 
     ///..
     @GetMapping(produces = "application/json")
-    public ResponseEntity<CacheTraceDto> getById(@RequestParam final long traceId) throws DataAccessException, EntityNotFoundException {
+    public ResponseEntity<CacheTraceDto> getById(@RequestParam final long traceId) throws DatabaseException, EntityNotFoundException {
 
         return ResponseEntity.ok(cacheTraceService.getById(traceId));
     }
@@ -74,7 +72,7 @@ public class CacheTraceController {
         @RequestParam(required = false) final Long updatedAtStart,
         @RequestParam(required = false) final Long updatedAtEnd
 
-    ) throws DataAccessException {
+    ) throws DatabaseException, ValidationException {
 
         return ResponseEntity.ok(cacheTraceService.getByFilter(
 
@@ -88,16 +86,16 @@ public class CacheTraceController {
 
     ///..
     @PatchMapping(consumes = "application/json")
-    public ResponseEntity<Void> update(@RequestBody final CacheTraceDto cacheTraceDto)
-    throws DataAccessException, EntityNotFoundException, IllegalArgumentException {
+    public ResponseEntity<Void> update(@RequestBody final CacheTraceDto cacheTrace)
+    throws DatabaseException, EntityNotFoundException, ValidationException {
 
-        cacheTraceService.update(cacheTraceDto);
+        cacheTraceService.update(cacheTrace);
         return ResponseEntity.ok().build();
     }
 
     ///..
     @DeleteMapping
-    public ResponseEntity<Void> deleteById(@RequestParam final long traceId) throws DataAccessException, EntityNotFoundException {
+    public ResponseEntity<Void> deleteById(@RequestParam final long traceId) throws DatabaseException, EntityNotFoundException {
 
         cacheTraceService.delete(traceId);
         return ResponseEntity.ok().build();

@@ -11,8 +11,10 @@ import io.github.clamentos.cachecruncher.error.ErrorDetails;
 ///..
 import io.github.clamentos.cachecruncher.error.exceptions.AuthenticationException;
 import io.github.clamentos.cachecruncher.error.exceptions.AuthorizationException;
+import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
 import io.github.clamentos.cachecruncher.error.exceptions.EntityAlreadyExistsException;
 import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundException;
+import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
 
 ///.
 import java.io.Serializable;
@@ -29,9 +31,6 @@ import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 
 ///.
-import org.springframework.dao.DataAccessException;
-
-///..
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -40,9 +39,6 @@ import org.springframework.http.ResponseEntity;
 
 ///..
 import org.springframework.http.converter.HttpMessageNotReadableException;
-
-///..
-import org.springframework.mail.MailException;
 
 ///..
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -77,8 +73,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     ///..
-    @ExceptionHandler(value = DataAccessException.class)
-    protected ResponseEntity<ProblemDetail> handleDataAccessException(final DataAccessException exc, final WebRequest request) {
+    @ExceptionHandler(value = DatabaseException.class)
+    protected ResponseEntity<ProblemDetail> handleDatabaseException(final DatabaseException exc, final WebRequest request) {
 
         log.error("{}: {}", exc.getClass().getSimpleName(), exc.getMessage());
         return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.UNPROCESSABLE_ENTITY);
@@ -103,6 +99,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     ///..
+    @ExceptionHandler(value = ValidationException.class)
+    protected ResponseEntity<ProblemDetail> handleValidationException(final ValidationException exc, final WebRequest request) {
+
+        return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.BAD_REQUEST);
+    }
+
+    ///..
     @Override
     protected ResponseEntity<Object> handleHttpMessageNotReadable(
 
@@ -116,7 +119,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
         if(cause != null) {
 
-            if(cause instanceof UnrecognizedPropertyException unrecognized) {
+            if(cause instanceof final UnrecognizedPropertyException unrecognized) {
 
                 return this.constructErrorFromExceptionMessageObj(
 
@@ -126,11 +129,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 );
             }
 
-            if(cause instanceof ValueInstantiationException value) {
+            if(cause instanceof final ValueInstantiationException value) {
 
                 final Throwable exception = value.getCause();
 
-                if(exception != null && (exception.getCause() instanceof ErrorDetails details)) {
+                if(exception != null && (exception.getCause() instanceof final ErrorDetails details)) {
 
                     return this.constructErrorFromExceptionMessageObj(details, request, HttpStatus.BAD_REQUEST);
                 }
@@ -139,24 +142,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
 		return super.handleHttpMessageNotReadable(exc, headers, status, request);
 	}
-
-    ///..
-    @ExceptionHandler(value = IllegalArgumentException.class)
-    protected ResponseEntity<ProblemDetail> handleIllegalArgumentException(
-
-        final IllegalArgumentException exc,
-        final WebRequest request
-    ) {
-
-        return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.BAD_REQUEST);
-    }
-
-    ///..
-    @ExceptionHandler(value = MailException.class)
-    protected ResponseEntity<ProblemDetail> handleMailException(final MailException exc, final WebRequest request) {
-
-        return this.constructErrorFromExceptionMessage(exc, request, HttpStatus.UNPROCESSABLE_ENTITY);
-    }
 
     ///.
     private ResponseEntity<ProblemDetail> constructErrorFromExceptionMessage(
@@ -193,9 +178,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
         else {
 
-            Throwable cause = exc.getCause();
+            final Throwable cause = exc.getCause();
 
-            if(cause instanceof ErrorDetails details) {
+            if(cause instanceof final ErrorDetails details) {
 
                 errorCode = this.fillArguments(details, arguments);
             }
@@ -211,6 +196,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         payload.setProperty("timestamp", System.currentTimeMillis());
         payload.setProperty("detailArguments", arguments);              // [...]
 
+        if(errorCode == ErrorCode.UNCATEGORIZED) log.error("constructPayload fallback log", exc);
         return payload;
     }
 
@@ -221,7 +207,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
         if(detailArguments != null) {
 
-            for(Object argument : detailArguments) {
+            for(final Object argument : detailArguments) {
 
                 arguments.add(Objects.toString(argument));
             }

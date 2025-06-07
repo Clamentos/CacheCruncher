@@ -1,7 +1,7 @@
 package io.github.clamentos.cachecruncher.web.dtos.trace;
 
 ///
-import io.github.clamentos.cachecruncher.business.simulation.cache.CacheCommandType;
+import io.github.clamentos.cachecruncher.business.simulation.cache.commands.CacheCommandType;
 
 ///.
 import java.util.Map;

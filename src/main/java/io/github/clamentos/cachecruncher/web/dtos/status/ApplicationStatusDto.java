@@ -12,13 +12,13 @@ import lombok.Getter;
 public final class ApplicationStatusDto {
 
     ///
-    private final RuntimeInfo runtimeInfo;
-    private final MemoryInfo memoryInfo;
-    private final ThreadsInfo threadsInfo;
-    private final ResponsesInfo responsesInfo;
-    private final SimulationStatusInfo simulationInfo;
-    private final Integer sessionsCount;
-    private final Integer loggedUsersCount;
+    private final RuntimeInfoDto runtimeInfo;
+    private final MemoryInfoDto memoryInfo;
+    private final ThreadsInfoDto threadsInfo;
+    private final ResponsesInfoDto responsesInfo;
+    private final SimulationStatusInfoDto simulationStatusInfo;
+    private final Integer sessionCount;
+    private final Integer loggedInUserCount;
 
     ///
 }
