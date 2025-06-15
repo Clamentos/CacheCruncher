@@ -29,7 +29,7 @@ public class AuthMappings {
         authenticationExcludedPaths = new HashSet<>();
 
         authenticationExcludedPaths.add("POST/cache-cruncher/user/register");
-        authenticationExcludedPaths.add("POST/cache-cruncher/user/resend");
+        authenticationExcludedPaths.add("GET/cache-cruncher/user/resend-email");
         authenticationExcludedPaths.add("GET/cache-cruncher/user/confirm-email");
         authenticationExcludedPaths.add("POST/cache-cruncher/user/login");
 

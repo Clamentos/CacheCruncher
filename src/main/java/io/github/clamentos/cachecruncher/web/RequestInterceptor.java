@@ -81,22 +81,19 @@ public class RequestInterceptor implements HandlerInterceptor {
         if(!bypass && !path.contains("/**")) {
 
             if(checkSecret && !gatewaySecret.equals(request.getHeader("Authorization"))) throw this.fail();
-            String authCookie = request.getHeader("Cookie");
-
-            if(authCookie == null || authCookie.length() != COOKIE_LENGTH || !authCookie.startsWith("sessionIdCookie")) {
-
-                throw this.fail();
-            }
-
-            authCookie = authCookie.substring(COOKIE_PREFIX_LENGTH);
 
             if(authMappings.requiresAuthentication(path)) {
 
-                if(authCookie == null) throw this.fail();
+                String authCookie = request.getHeader("Cookie");
+
+                if(authCookie == null || authCookie.length() != COOKIE_LENGTH || !authCookie.startsWith("sessionIdCookie")) {
+
+                    throw this.fail();
+                }
 
                 final Session session = sessionService.check(
 
-                    authCookie,
+                    authCookie.substring(COOKIE_PREFIX_LENGTH),
                     authMappings.requiresAdminPrivilege(path),
                     ErrorMessages.NOT_ENOUGH_PRIVILEGES
                 );

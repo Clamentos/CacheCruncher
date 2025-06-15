@@ -7,7 +7,7 @@ import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
 import io.github.clamentos.cachecruncher.utility.BasicValidator;
 
 ///..
-import io.github.clamentos.cachecruncher.web.dtos.filters.ResponseInfoSearchFilterDto;
+import io.github.clamentos.cachecruncher.web.dtos.filters.RangeSearchFilterDto;
 
 ///.
 import org.springframework.stereotype.Service;
@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 public class ResponseInfoSearchFilterValidator extends BasicValidator {
 
     ///
-    public void validate(final ResponseInfoSearchFilterDto searchFilter) throws ValidationException {
+    public void validate(final RangeSearchFilterDto searchFilter) throws ValidationException {
 
         super.requireNotNull(searchFilter, "DTO");
 

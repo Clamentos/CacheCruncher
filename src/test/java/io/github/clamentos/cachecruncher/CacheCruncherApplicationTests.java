@@ -1,10 +1,22 @@
 package io.github.clamentos.cachecruncher;
 
 ///
+import com.fasterxml.jackson.core.type.TypeReference;
+
+///..
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 ///.
+import io.github.clamentos.cachecruncher.context.TestContext;
+
+///.
+import java.io.IOException;
+
+///..
+import java.nio.file.Files;
+
+///..
 import java.util.Map;
 
 ///.
@@ -30,6 +42,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 
 ///..
+import org.springframework.core.io.ClassPathResource;
+
+///..
 import org.springframework.mock.web.MockHttpServletResponse;
 
 ///..
@@ -43,33 +58,12 @@ import org.springframework.test.context.jdbc.Sql.ExecutionPhase;
 @AutoConfigureMockMvc
 @SpringBootTest
 @Sql(scripts = {"/testing_schema.sql"}, executionPhase = ExecutionPhase.BEFORE_TEST_METHOD)
-@TestInstance(value = TestInstance.Lifecycle.PER_METHOD)
+@TestInstance(value = TestInstance.Lifecycle.PER_CLASS)
 @TestPropertySource(locations = "classpath:application_test.properties")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 
 ///
 class CacheCruncherApplicationTests extends TestSources {
-
-	/*
-		POST/cache-cruncher/user/login
-		DELETE/cache-cruncher/user/logout
-		DELETE/cache-cruncher/user/logout-all
-		GET/cache-cruncher/user
-		PATCH/cache-cruncher/user
-		DELETE/cache-cruncher/user
-		GET/cache-cruncher/status/metrics
-		GET/cache-cruncher/status/metrics/history
-		GET/cache-cruncher/status/logs
-		GET/cache-cruncher/status/logs/count
-		DELETE/cache-cruncher/status/metrics/history
-		DELETE/cache-cruncher/status/logs
-		GET/cache-cruncher/simulation
-		POST/cache-cruncher/trace
-		GET/cache-cruncher/trace
-		GET/cache-cruncher/trace/search
-		PATCH/cache-cruncher/trace
-		DELETE/cache-cruncher/trace
-	*/
 
 	///
 	private final ApplicationApis applicationApis;
@@ -77,46 +71,88 @@ class CacheCruncherApplicationTests extends TestSources {
 
 	///
 	@Autowired
-	public CacheCruncherApplicationTests(ApplicationApis applicationApis, ObjectMapper objectMapper) {
+	public CacheCruncherApplicationTests(final ApplicationApis applicationApis, final ObjectMapper objectMapper) throws IOException {
 
 		this.applicationApis = applicationApis;
 		this.objectMapper = objectMapper;
+
+		final String testData = Files.readString(new ClassPathResource("test_data/TestData.json").getFile().toPath());
+		super.fill(objectMapper.readValue(testData, new TypeReference<Map<String, Map<String, Map<String, TestContext>>>>(){}));
 	}
 
 	///
 	@Order(0)
 	@ParameterizedTest
-    @MethodSource("registerSource")
-    public void register(TestContext context) throws Exception {
+    @MethodSource("registerSource") // Also test the email confirmation.
+    public void register(final Map<String, TestContext> contexts) throws Exception {
 
-		MockHttpServletResponse response = applicationApis.register(context.getParameters());
-        this.checkResponse(context, response);
+		final TestContext registerAction = contexts.get("registerAction");
+		final MockHttpServletResponse registrationResponse = applicationApis.register(registerAction.getBody());
+		this.checkResponse(registerAction, registrationResponse);
+
+		final TestContext confirmEmailAction = contexts.get("confirmEmailAction");
+
+		if(registrationResponse.getStatus() == 200 && confirmEmailAction != null) {
+
+			final String token = registrationResponse.getContentAsString();
+			final MockHttpServletResponse validationResponse = applicationApis.confirmEmail(token);
+			this.checkResponse(confirmEmailAction, validationResponse);
+		}
 	}
 
 	///..
 	@Order(1)
 	@ParameterizedTest
     @MethodSource("loginSource")
-    public void login(TestContext context) throws Exception {
+    public void login(final Map<String, TestContext> contexts) throws Exception {
 
-		MockHttpServletResponse response = applicationApis.login(context.getParameters());
-        this.checkResponse(context, response);
+		final TestContext loginAction = contexts.get("loginAction");
+		this.checkResponse(loginAction, applicationApis.login(loginAction.getBody()));
+	}
+
+	///..
+	// Refresh session
+
+	///..
+	// logout
+	// logout all
+	// updatePrivilege
+	// deleteUser
+
+	///..
+	@Order(2)
+	@ParameterizedTest
+    @MethodSource("getAllUsersSource")
+    public void getAllUsers(final Map<String, TestContext> contexts) throws Exception {
+
+		final TestContext loginAction = contexts.get("loginAction");
+		String sessionCookie = null;
+
+		if(loginAction != null) {
+
+			final MockHttpServletResponse loginResponse = applicationApis.login(loginAction.getBody());
+			this.checkResponse(loginAction, loginResponse);
+			sessionCookie = loginResponse.getHeader("Set-Cookie");
+		}
+
+		this.checkResponse(contexts.get("getAllUsersAction"), applicationApis.getAllUsers(sessionCookie));
 	}
 
 	///.
-	private void checkResponse(TestContext context, MockHttpServletResponse response) throws Exception {
+	private void checkResponse(final TestContext context, final MockHttpServletResponse response) throws Exception {
 
 		Assertions.assertEquals(context.getExpectedStatus(), response.getStatus());
-        Map<String, Object> expectedValues = context.getExpectedValues();
+        final Map<String, Object> expectedValues = context.getExpectedValues();
 
 		if(expectedValues != null && !expectedValues.isEmpty()) {
 
-			JsonNode responseJson = objectMapper.readTree(response.getContentAsString());
+			final JsonNode responseJson = objectMapper.readTree(response.getContentAsString());
 
-			for(Map.Entry<String, Object> entry : expectedValues.entrySet()) {
+			for(final Map.Entry<String, Object> entry : expectedValues.entrySet()) {
 
-				JsonNode toCheck = responseJson.at(entry.getKey());
-				Object expectedValue = entry.getValue();
+				final JsonNode toCheck = responseJson.at(entry.getKey());
+				final Object expectedValue = entry.getValue();
+
 				Object toCheckValue = null;
 
 				if(toCheck != null && !toCheck.isMissingNode()) {

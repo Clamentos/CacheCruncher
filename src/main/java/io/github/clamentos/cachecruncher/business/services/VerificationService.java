@@ -73,7 +73,7 @@ public class VerificationService {
         final String hexToken = hexer.formatHex(plainToken.getBytes()) + ";" + hexHash;
 
         // Only when testing.
-        if(mailVerifySecret == null || mailVerifySecret.isEmpty()) {
+        if(mailVerifySecret != null && !mailVerifySecret.isEmpty()) {
 
             final SimpleMailMessage emailMessage = new SimpleMailMessage();
 

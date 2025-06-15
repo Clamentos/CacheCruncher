@@ -11,7 +11,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class ResponseInfoSearchFilterDto extends PageableSearchDto {
+public final class RangeSearchFilterDto extends PageableSearchDto {
 
     ///
     private final Long createdAtStart;
@@ -19,7 +19,7 @@ public final class ResponseInfoSearchFilterDto extends PageableSearchDto {
 
     ///
     @JsonCreator
-    public ResponseInfoSearchFilterDto(
+    public RangeSearchFilterDto(
 
         @JsonProperty("lastTimestamp") final Long lastTimestamp,
         @JsonProperty("count") final Integer count,

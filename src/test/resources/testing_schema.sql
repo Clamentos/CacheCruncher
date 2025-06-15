@@ -36,8 +36,8 @@ CREATE TABLE IF NOT EXISTS metric (
     created_at              BIGINT           NOT NULL,
     second                  INT              NOT NULL,
     endpoint                VARCHAR(255)     NOT NULL,
-    status                  SMALLINT         NOT NULL,
-    data                    MEDIUMTEXT       NOT NULL
+    data                    MEDIUMTEXT       NOT NULL,
+    status                  SMALLINT         NOT NULL
 );
 
 ---..
@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS cache_trace (
     updated_at              BIGINT           NULL,
     description             VARCHAR(1024)    NOT NULL,
     name                    VARCHAR(128)     NOT NULL,
-    data                    TEXT             NOT NULL
+    statistics              TEXT             NOT NULL,
+    data                    MEDIUMBLOB       NOT NULL
 );
 
 ---..

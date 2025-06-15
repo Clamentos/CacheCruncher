@@ -1,0 +1,131 @@
+{
+    "registerSource": {
+
+        "successfulCase": {
+
+            "registerAction": {
+
+                "body": {
+
+                    "email": "JunitTestRegistration@mail.com",
+                    "password": "CacheCruncher123?!"
+                },
+
+                "expectedStatus": 200
+            },
+
+            "confirmEmailAction": {
+
+                "expectedStatus": 200
+            }
+        },
+
+        "badBodyCase": {
+
+            "registerAction": {
+
+                "body": {
+
+                    "email": null,
+                    "password": "CacheCruncher123?!"
+                },
+
+                "expectedStatus": 400
+            }
+        },
+
+        "conflictCase": {
+
+            "registerAction": {
+
+                "body": {
+
+                    "email": "normal@test.com",
+                    "password": "CacheCruncher123?!"
+                },
+
+                "expectedStatus": 409
+            }
+        }
+    },
+
+    "loginSource": {
+
+        "successfulCase": {
+
+            "loginAction": {
+
+                "body": {
+
+                    "email": "admin@test.com",
+                    "password": "Password123?!"
+                },
+
+                "expectedStatus": 200
+            }
+        },
+
+        "userNotFoundCase": {
+
+            "loginAction": {
+
+                "body": {
+
+                    "email": "adminNotFound@test.com",
+                    "password": "Password123?!"
+                },
+
+                "expectedStatus": 401
+            }
+        }
+    },
+
+    "getAllUsersSource": {
+
+        "successfulCase": {
+
+            "loginAction": {
+
+                "body": {
+
+                    "email": "admin@test.com",
+                    "password": "Password123?!"
+                },
+
+                "expectedStatus": 200
+            },
+
+            "getAllUsersAction": {
+
+                "expectedStatus": 200
+            }
+        },
+
+        "unauthorizedCase_1": {
+
+            "loginAction": {
+
+                "body": {
+
+                    "email": "normal@test.com",
+                    "password": "Password123?!"
+                },
+
+                "expectedStatus": 200
+            },
+
+            "getAllUsersAction": {
+
+                "expectedStatus": 403
+            }
+        },
+
+        "unauthorizedCase_2": {
+
+            "getAllUsersAction": {
+
+                "expectedStatus": 401
+            }
+        }
+    }
+}

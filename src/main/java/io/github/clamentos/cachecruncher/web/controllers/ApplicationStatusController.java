@@ -15,7 +15,7 @@ import io.github.clamentos.cachecruncher.persistence.entities.Log;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.filters.LogSearchFilterDto;
-import io.github.clamentos.cachecruncher.web.dtos.filters.ResponseInfoSearchFilterDto;
+import io.github.clamentos.cachecruncher.web.dtos.filters.RangeSearchFilterDto;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.status.ApplicationStatusDto;
@@ -82,8 +82,8 @@ public class ApplicationStatusController {
     ///..
     @GetMapping(path = "/metrics/history", consumes = "application/json", produces = "application/json")
     public ResponseEntity<ResponsesInfoDto> getResponsesInfoByFilter(
-        
-        @RequestBody final ResponseInfoSearchFilterDto responseInfoSearchFilter
+
+        @RequestBody final RangeSearchFilterDto responseInfoSearchFilter
 
     ) throws DatabaseException, ValidationException {
 

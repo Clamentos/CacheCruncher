@@ -34,7 +34,7 @@ import io.github.clamentos.cachecruncher.utility.JsonMapper;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.filters.LogSearchFilterDto;
-import io.github.clamentos.cachecruncher.web.dtos.filters.ResponseInfoSearchFilterDto;
+import io.github.clamentos.cachecruncher.web.dtos.filters.RangeSearchFilterDto;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.status.ApplicationStatusDto;
@@ -271,7 +271,7 @@ public class ApplicationStatusService {
     }
 
     ///..
-    public ResponsesInfoDto getResponsesInfoByFilter(final ResponseInfoSearchFilterDto responseInfoSearchFilter)
+    public ResponsesInfoDto getResponsesInfoByFilter(final RangeSearchFilterDto responseInfoSearchFilter)
     throws DatabaseException, ValidationException {
 
         responseInfoSearchFilterValidator.validate(responseInfoSearchFilter);

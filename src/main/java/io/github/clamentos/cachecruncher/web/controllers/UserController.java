@@ -70,7 +70,7 @@ public class UserController {
     }
 
     ///..
-    @PostMapping(path = "/resend", produces = "text/plain", consumes = "application/json")
+    @GetMapping(path = "/resend-email", produces = "text/plain", consumes = "application/json")
     public ResponseEntity<String> resendVerificationEmail(@RequestBody final String email) {
 
         return ResponseEntity.ok(userService.resendVerificationEmail(email));

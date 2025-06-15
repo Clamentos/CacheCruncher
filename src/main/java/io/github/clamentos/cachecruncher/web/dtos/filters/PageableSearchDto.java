@@ -11,7 +11,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public sealed class PageableSearchDto permits ResponseInfoSearchFilterDto, LogSearchFilterDto {
+public sealed class PageableSearchDto permits RangeSearchFilterDto, LogSearchFilterDto {
 
     ///
     private final Long lastTimestamp;
