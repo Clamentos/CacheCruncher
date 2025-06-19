@@ -51,7 +51,7 @@ public final class RequestsMetrics {
     private final AtomicInteger currentSecond;
 
     ///..
-    private final List<Pair<Integer, Integer>> breakpoints;
+    private final List<Pair<Short, Short>> breakpoints;
     private final int outliersStartingBoundary;
     private final int rolloverTime;
 
@@ -69,7 +69,7 @@ public final class RequestsMetrics {
 
             "cache-cruncher.monitoring.status.breakpoints",
             String.class,
-            "0-10,11-20,21-50-51-100,101-200,201-500"
+            "0-10,11-20,21-50,51-100,101-200,201-500"
         );
 
         final String[] breakpointsSplits = breakpointsProp.split(",");
@@ -85,8 +85,8 @@ public final class RequestsMetrics {
             final String[] boundaries = breakpoint.split("-");
             if(boundaries.length != 2) throw this.fail("Breakpoints must be formatted: \"X-Y\"");
 
-            final int boundaryStart = Integer.parseInt(boundaries[0]);
-            final int boundaryEnd = Integer.parseInt(boundaries[1]);
+            final short boundaryStart = Short.parseShort(boundaries[0]);
+            final short boundaryEnd = Short.parseShort(boundaries[1]);
 
             if(boundaryStart >= boundaryEnd) throw this.fail("Breakpoints must respect: Y > X");
             breakpoints.add(new Pair<>(boundaryStart, boundaryEnd));
