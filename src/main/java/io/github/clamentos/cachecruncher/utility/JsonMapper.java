@@ -63,6 +63,8 @@ public final class JsonMapper {
             throw new IllegalArgumentException(new ErrorDetails(ErrorCode.GENERIC, ErrorMessages.METHOD_ILLEGAL_ARGS));
         }
 
+        if(object == null) return null;
+
         try {
 
             return objectMapper.readValue(object, type);

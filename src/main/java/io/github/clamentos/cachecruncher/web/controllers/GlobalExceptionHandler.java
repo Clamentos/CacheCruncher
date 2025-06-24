@@ -14,6 +14,7 @@ import io.github.clamentos.cachecruncher.error.exceptions.AuthorizationException
 import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
 import io.github.clamentos.cachecruncher.error.exceptions.EntityAlreadyExistsException;
 import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundException;
+import io.github.clamentos.cachecruncher.error.exceptions.UnprocessableRequestException;
 import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
 
 ///.
@@ -99,6 +100,38 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     ///..
+    @ExceptionHandler(value = UnprocessableRequestException.class)
+    protected ResponseEntity<ProblemDetail> handleUnprocessableRequestException(
+
+        final UnprocessableRequestException exc,
+        final WebRequest request
+    ) {
+
+        final ErrorDetails details = (ErrorDetails)exc.getCause();
+        final ErrorCode errorCode = details.getErrorCode();
+
+        if(errorCode == ErrorCode.TOO_MANY_REQUESTS) {
+
+            final HttpHeaders headers = new HttpHeaders();
+            headers.add("Retry-After", details.getArguments()[1].toString());
+
+            return new ResponseEntity<>(
+
+                this.constructPayload(exc, request, HttpStatus.TOO_MANY_REQUESTS),
+                headers,
+                HttpStatus.TOO_MANY_REQUESTS
+            );
+        }
+
+        return this.constructErrorFromExceptionMessage(
+
+            exc,
+            request,
+            errorCode == ErrorCode.API_NOT_FOUND ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST
+        );
+    }
+
+    ///..
     @ExceptionHandler(value = ValidationException.class)
     protected ResponseEntity<ProblemDetail> handleValidationException(final ValidationException exc, final WebRequest request) {
 
@@ -123,7 +156,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
                 return this.constructErrorFromExceptionMessageObj(
 
-                    new ErrorDetails(ErrorCode.VALIDATOR_BAD_FORMAT, unrecognized.getPropertyName(), " is unknown"),
+                    new ErrorDetails(ErrorCode.VALIDATOR_BAD_FORMAT, unrecognized.getPropertyName(), "is unknown"),
                     request,
                     HttpStatus.BAD_REQUEST
                 );

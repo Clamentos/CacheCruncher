@@ -13,6 +13,10 @@ import lombok.Getter;
 public enum ErrorCode {
 
     ///
+    REAL_IP_MISSING("The request is missing the X-Real-IP header or it is malformed"),
+    TOO_MANY_REQUESTS("The limit of ? requests per minute has been reached. Retry after ? ms"),
+    API_NOT_FOUND("The endpoint ? does not exist"),
+    
     VALIDATOR_BAD_FORMAT("Argument ? ?"),
     SERIALIZATION_ERROR("Could not serialize JSON"),
     DESERIALIZATION_ERROR("Could not deserialize JSON"),

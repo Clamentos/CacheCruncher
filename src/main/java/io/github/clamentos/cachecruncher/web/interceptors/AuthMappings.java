@@ -1,4 +1,4 @@
-package io.github.clamentos.cachecruncher.web;
+package io.github.clamentos.cachecruncher.web.interceptors;
 
 ///
 import java.util.HashMap;
@@ -59,6 +59,12 @@ public class AuthMappings {
     }
 
     ///
+    public boolean exists(final String path) {
+
+        return authenticationExcludedPaths.contains(path) || authorizationMappings.containsKey(path);
+    }
+
+    ///..
     public boolean requiresAuthentication(final String path) {
 
         return !authenticationExcludedPaths.contains(path);

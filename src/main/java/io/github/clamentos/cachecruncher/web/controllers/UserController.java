@@ -116,7 +116,7 @@ public class UserController {
         final Session refreshedSession = userService.refresh(session, device);
 
         return new ResponseEntity<>(
-            
+
             refreshedSession.getExpiresAt(),
             this.generateCookie(refreshedSession.getId(), refreshedSession.getExpiresAt()),
             HttpStatus.OK

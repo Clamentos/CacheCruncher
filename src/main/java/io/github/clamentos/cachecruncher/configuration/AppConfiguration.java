@@ -1,7 +1,7 @@
 package io.github.clamentos.cachecruncher.configuration;
 
 ///
-import io.github.clamentos.cachecruncher.web.RequestInterceptor;
+import io.github.clamentos.cachecruncher.web.interceptors.AuthFilter;
 
 ///.
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,6 +9,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 ///..
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+///..
+import org.springframework.core.Ordered;
 
 ///..
 import org.springframework.core.env.Environment;
@@ -38,20 +41,20 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class AppConfiguration implements WebMvcConfigurer {
 
     ///
-    private final RequestInterceptor requestInterceptor;
+    private final AuthFilter authFilter;
 
     ///
     @Autowired
-    public AppConfiguration(final RequestInterceptor requestInterceptor) {
+    public AppConfiguration(final AuthFilter authFilter) {
 
-        this.requestInterceptor = requestInterceptor;
+        this.authFilter = authFilter;
     }
 
     ///
     @Override
     public void addInterceptors(final InterceptorRegistry registry) {
 
-		registry.addInterceptor(requestInterceptor).addPathPatterns("/**");
+		registry.addInterceptor(authFilter).addPathPatterns("/**").order(Ordered.HIGHEST_PRECEDENCE);
 	}
 
     ///
