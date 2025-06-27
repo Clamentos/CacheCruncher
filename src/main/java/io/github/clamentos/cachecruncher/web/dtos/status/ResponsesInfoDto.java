@@ -19,7 +19,7 @@ public final class ResponsesInfoDto {
 
     ///
     private final Map<String, Integer> uriIdMappings;
-    private final Map<Integer, Map<Integer, Map<HttpStatus, Map<String, Integer>>>> metrics;
+    private final Map<Long, Map<Integer, Map<HttpStatus, Map<String, Integer>>>> metrics;
 
     ///
 }

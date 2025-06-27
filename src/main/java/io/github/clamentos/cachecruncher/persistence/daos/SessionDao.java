@@ -41,6 +41,7 @@ public class SessionDao extends Dao {
     private static final String SELECT_SQL = "SELECT user_id,expires_at,email,device,id,is_admin FROM session";
     private static final String DELETE_BY_ID_SQL = "DELETE FROM session WHERE id=?";
     private static final String DELETE_ALL_BY_IDS_SQL = "DELETE FROM session WHERE id IN (";
+    private static final String DELETE_ALL_EXPIRED = "DELETE FROM session WHERE expires_at <= ?";
 
     ///
     @Autowired
@@ -101,6 +102,20 @@ public class SessionDao extends Dao {
         }
 
         return deleted;
+    }
+
+    ///..
+    @Transactional(rollbackFor = DatabaseException.class)
+    public void deleteExpired() throws DatabaseException {
+
+        super.wrap(() ->
+
+            super.getJdbcTemplate().update(
+
+                DELETE_ALL_EXPIRED,
+                preparedStatement -> preparedStatement.setLong(1, System.currentTimeMillis())
+            )
+        );
     }
 
     ///.

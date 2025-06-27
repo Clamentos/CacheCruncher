@@ -37,9 +37,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class MetricDao extends Dao {
 
     ///
-    private static final String INSERT_SQL = "INSERT INTO metric (created_at,second,endpoint,data,status) values (?,?,?,?,?)";
+    private static final String INSERT_SQL = "INSERT INTO metric (created_at,timestamp,endpoint,data,status) values (?,?,?,?,?)";
 
-    private static final String SELECT_SQL = "SELECT id,createdAt,second,endpoint,data,status FROM metric WHERE created_at > ? and created_at BETWEEN ? AND ? LIMIT ?";
+    private static final String SELECT_SQL = "SELECT id,createdAt,timestamp,endpoint,data,status FROM metric WHERE created_at > ? and created_at BETWEEN ? AND ? LIMIT ?";
 
     private static final String DELETE_SQL = "DELETE FROM metric WHERE created_at BETWEEN ? and ?";
 
@@ -61,7 +61,7 @@ public class MetricDao extends Dao {
                 super.getJdbcTemplate().batchUpdate(INSERT_SQL, metrics, super.getBatchSize(), (preparedStatement, metric) -> {
 
                     preparedStatement.setLong(1, metric.getCreatedAt());
-                    preparedStatement.setInt(2, metric.getSecond());
+                    preparedStatement.setLong(2, metric.getTimestamp());
                     preparedStatement.setString(3, metric.getEndpoint());
                     preparedStatement.setString(4, metric.getData());
                     preparedStatement.setShort(5, metric.getStatus());
@@ -117,7 +117,7 @@ public class MetricDao extends Dao {
 
                 resultSet.getLong(1),
                 resultSet.getLong(2),
-                resultSet.getInt(3),
+                resultSet.getLong(3),
                 resultSet.getString(4),
                 resultSet.getString(5),
                 resultSet.getShort(6)

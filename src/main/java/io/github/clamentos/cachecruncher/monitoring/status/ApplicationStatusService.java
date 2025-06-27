@@ -65,10 +65,11 @@ import lombok.extern.slf4j.Slf4j;
 
 ///.
 import org.springframework.beans.factory.annotation.Autowired;
-
+import org.springframework.context.event.ContextClosedEvent;
 ///..
 import org.springframework.context.event.EventListener;
-
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 ///..
 import org.springframework.core.task.TaskExecutor;
 
@@ -78,9 +79,6 @@ import org.springframework.dao.NonTransientDataAccessResourceException;
 
 ///..
 import org.springframework.http.HttpStatus;
-
-///..
-import org.springframework.scheduling.annotation.Scheduled;
 
 ///..
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -284,14 +282,14 @@ public class ApplicationStatusService {
             responseInfoSearchFilter.getCreatedAtEnd()
         );
 
-        final Map<Integer, Map<Integer, Map<HttpStatus, Map<String, Integer>>>> metrics = new HashMap<>();
+        final Map<Long, Map<Integer, Map<HttpStatus, Map<String, Integer>>>> metrics = new HashMap<>();
         final Map<String, Integer> uriIdMap = startupActions.getUriIdMap();
 
         for(final Metric fetchedMetric : fetchedMetricEntities) {
 
             metrics
 
-                .computeIfAbsent(fetchedMetric.getSecond(), _ -> new HashMap<>())
+                .computeIfAbsent(fetchedMetric.getTimestamp(), _ -> new HashMap<>())
                 .computeIfAbsent(uriIdMap.get(fetchedMetric.getEndpoint()), _ -> new EnumMap<>(HttpStatus.class))
                 .computeIfAbsent(HttpStatus.valueOf(fetchedMetric.getStatus()), _ -> new HashMap<>())
                 .putAll(jsonMapper.deserialize(fetchedMetric.getData(), mapTypeRef))
@@ -339,6 +337,12 @@ public class ApplicationStatusService {
         return logDao.delete(createdAtStart, createdAtEnd);
     }
 
+    ///..
+    public void rolloverTask() {
+
+        this.dumpMetrics(false);
+    }
+
     ///.
     @EventListener
     protected void handleRequestHandledEvent(final ServletRequestHandledEvent requestHandledEvent) {
@@ -356,19 +360,26 @@ public class ApplicationStatusService {
     }
 
     ///..
-    @Scheduled(fixedRate = 1_000, scheduler = "taskScheduler")
-    protected void dump() {
+    @EventListener
+    @Order(value = Ordered.HIGHEST_PRECEDENCE)
+    protected void handleContextClosedEvent(final ContextClosedEvent contextClosedEvent) {
+
+        this.dumpMetrics(true);
+    }
+
+    ///.
+    private void dumpMetrics(final boolean force) {
 
         try {
 
-            requestsMetrics.tryRollover(metrics -> {
+            requestsMetrics.tryRollover(force, metrics -> {
 
                 log.info("Starting metrics dumping task...");
 
                 final List<Metric> metricEntities = new ArrayList<>();
                 final long now = System.currentTimeMillis();
 
-                for(final Map.Entry<Integer, Map<String, Map<HttpStatus, LatencyDistribution>>> metricEntry : metrics.entrySet()) {
+                for(final Map.Entry<Long, Map<String, Map<HttpStatus, LatencyDistribution>>> metricEntry : metrics.entrySet()) {
 
                     for(final Map.Entry<String, Map<HttpStatus, LatencyDistribution>> pathEntry : metricEntry.getValue().entrySet()) {
 

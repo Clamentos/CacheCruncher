@@ -49,7 +49,7 @@ public class AuthMappings {
         authorizationMappings.put("DELETE/cache-cruncher/status/metrics/history", true);
         authorizationMappings.put("DELETE/cache-cruncher/status/logs", true);
 
-        authorizationMappings.put("GET/cache-cruncher/simulation", false);
+        authorizationMappings.put("GET/cache-cruncher/cache-trace/simulation", false);
 
         authorizationMappings.put("POST/cache-cruncher/cache-trace", false);
         authorizationMappings.put("GET/cache-cruncher/cache-trace", false);

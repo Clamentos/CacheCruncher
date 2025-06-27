@@ -49,9 +49,6 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.dao.NonTransientDataAccessResourceException;
 
 ///..
-import org.springframework.scheduling.annotation.Scheduled;
-
-///..
 import org.springframework.stereotype.Component;
 
 ///
@@ -88,8 +85,7 @@ public class DatabaseLogsWriter {
     }
 
     ///
-    @Scheduled(cron = "0 */5 * * * *", scheduler = "taskScheduler")
-    protected void dump() {
+    public void dumpTask() {
 
         log.info("Starting logs dumping task...");
 

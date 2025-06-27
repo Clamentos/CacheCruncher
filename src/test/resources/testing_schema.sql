@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS metric (
 
     id                      BIGINT           PRIMARY KEY DEFAULT (NEXT VALUE FOR metric_id_seq),
     created_at              BIGINT           NOT NULL,
-    second                  INT              NOT NULL,
+    timestamp               BIGINT           NOT NULL,
     endpoint                VARCHAR(255)     NOT NULL,
     data                    MEDIUMTEXT       NOT NULL,
     status                  SMALLINT         NOT NULL

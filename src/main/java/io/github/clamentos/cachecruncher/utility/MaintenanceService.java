@@ -20,9 +20,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 
 ///..
-import org.springframework.scheduling.annotation.Scheduled;
-
-///..
 import org.springframework.stereotype.Service;
 
 ///
@@ -52,8 +49,7 @@ public class MaintenanceService {
     }
 
     ///
-    @Scheduled(cron = "0 0 0 * * *", scheduler = "taskScheduler")
-    protected void dump() {
+    public void cleanByRetentionTask() {
 
         log.info("Starting maintenance task...");
 

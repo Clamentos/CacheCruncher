@@ -79,7 +79,7 @@ public class AuthFilter implements HandlerInterceptor {
         this.rateLimiter = rateLimiter;
         this.authMappings = authMappings;
 
-        gatewaySecret = environment.getProperty("cache-cruncher.gateway.secret", String.class);
+        gatewaySecret = environment.getProperty("cache-cruncher.auth.gatewaySecret", String.class);
         bypassAuth = environment.getProperty("cache-cruncher.auth.bypass", Boolean.class, false);
         rateLimitingEnabled = environment.getProperty("cache-cruncher.rate-limiter.enabled", Boolean.class, false);
         retryDelay = environment.getProperty("cache-cruncher.rate-limiter.retryDelay", Long.class, 60_000L);

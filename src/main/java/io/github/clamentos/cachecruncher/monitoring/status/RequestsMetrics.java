@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 ///..
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 ///..
 import java.util.function.Consumer;
@@ -43,17 +43,20 @@ import org.springframework.stereotype.Component;
 public final class RequestsMetrics {
 
     ///
-    private final Map<Integer, Map<String, Map<HttpStatus, LatencyDistribution>>> latencyTracker;
-    private final Map<Integer, Map<String, Map<HttpStatus, LatencyDistribution>>> latencyTrackerShadow;
+    private final Map<Long, Map<String, Map<HttpStatus, LatencyDistribution>>> latencyTracker;
+    private final Map<Long, Map<String, Map<HttpStatus, LatencyDistribution>>> latencyTrackerShadow;
 
     ///..
     private final AtomicBoolean direction;
-    private final AtomicInteger currentSecond;
+    private final AtomicLong currentTimeSlot;
+    private final AtomicLong rolloverTimeSlot;
 
     ///..
     private final List<Pair<Short, Short>> breakpoints;
     private final int outliersStartingBoundary;
-    private final int rolloverTime;
+
+    ///..
+    private final long rolloverTime;
 
     ///
     @Autowired
@@ -62,8 +65,10 @@ public final class RequestsMetrics {
         latencyTracker = new ConcurrentHashMap<>();
         latencyTrackerShadow = new ConcurrentHashMap<>();
 
+        final long now = System.currentTimeMillis();
+
         direction = new AtomicBoolean();
-        currentSecond = new AtomicInteger();
+        currentTimeSlot = new AtomicLong(now);
 
         final String breakpointsProp = environment.getProperty(
 
@@ -99,20 +104,21 @@ public final class RequestsMetrics {
             501
         );
 
-        rolloverTime = environment.getProperty("cache-cruncher.monitoring.status.rolloverTime", Integer.class, 300);
+        rolloverTime = environment.getProperty("cache-cruncher.monitoring.status.rolloverTime", Long.class, 300_000L);
+        rolloverTimeSlot = new AtomicLong(now + rolloverTime);
     }
 
     ///
     public void updateMetrics(final String path, final HttpStatus status, final int elapsed) {
 
-        while(currentSecond.get() == rolloverTime) {
+        while(currentTimeSlot.get() >= rolloverTimeSlot.get()) {
 
             // busy wait (only when is rolling over).
             // should stay here for a very small amount of time, that is,
             // the time it takes for the scheduled task to set the direction.
         }
 
-        final int slotValue = currentSecond.get();
+        final long slotValue = currentTimeSlot.get();
         final var currentTracker = direction.get() ? latencyTrackerShadow : latencyTracker;
 
         currentTracker
@@ -125,32 +131,34 @@ public final class RequestsMetrics {
     }
 
     ///..
-    public void tryRollover(final Consumer<Map<Integer, Map<String, Map<HttpStatus, LatencyDistribution>>>> action) {
+    public void tryRollover(final boolean force, final Consumer<Map<Long, Map<String, Map<HttpStatus, LatencyDistribution>>>> action) {
 
-        if(currentSecond.get() == rolloverTime) {
+        if(currentTimeSlot.get() >= rolloverTimeSlot.get() || force) {
 
+            final long now = System.currentTimeMillis();
             final boolean oldDirection = direction.get();
             final var currentTracker = oldDirection ? latencyTrackerShadow : latencyTracker;
 
             direction.set(!oldDirection);
-            currentSecond.set(0);
+            currentTimeSlot.set(now);
+            rolloverTimeSlot.set(now + rolloverTime);
             action.accept(currentTracker);
             currentTracker.clear();
         }
 
         else {
 
-            currentSecond.incrementAndGet();
+            currentTimeSlot.set(System.currentTimeMillis());
         }
     }
 
     ///..
-    public Map<Integer, Map<Integer, Map<HttpStatus, Map<String, Integer>>>> getMetrics(final Map<String, Integer> uriIdMap) {
+    public Map<Long, Map<Integer, Map<HttpStatus, Map<String, Integer>>>> getMetrics(final Map<String, Integer> uriIdMap) {
 
-        final Map<Integer, Map<Integer, Map<HttpStatus, Map<String, Integer>>>> metrics = new HashMap<>();
+        final Map<Long, Map<Integer, Map<HttpStatus, Map<String, Integer>>>> metrics = new HashMap<>();
         final var currentTracker = direction.get() ? latencyTrackerShadow : latencyTracker;
 
-        for(final Map.Entry<Integer, Map<String, Map<HttpStatus, LatencyDistribution>>> trackerEntry : currentTracker.entrySet()) {
+        for(final Map.Entry<Long, Map<String, Map<HttpStatus, LatencyDistribution>>> trackerEntry : currentTracker.entrySet()) {
 
             final Map<Integer, Map<HttpStatus, Map<String, Integer>>> pathMetrics = new HashMap<>();
             metrics.put(trackerEntry.getKey(), pathMetrics);

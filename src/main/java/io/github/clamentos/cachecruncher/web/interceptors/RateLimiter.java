@@ -19,9 +19,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 
 ///..
-import org.springframework.scheduling.annotation.Scheduled;
-
-///..
 import org.springframework.stereotype.Component;
 
 ///.
@@ -73,9 +70,8 @@ public final class RateLimiter {
         return count >= 0;
     }
 
-    ///.
-    @Scheduled(fixedRate = 10_000, scheduler = "taskScheduler")
-    protected void replenish() {
+    ///..
+    public void replenishTask() {
 
         this.replenish(requestCountersByIp, tokenCountByIp);
         this.replenish(requestCountersBySession, tokenCountBySession);

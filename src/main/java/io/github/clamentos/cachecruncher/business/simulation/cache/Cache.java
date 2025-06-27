@@ -241,7 +241,7 @@ public final class Cache implements Memory {
     ///..
     private long resolveRamAccessTime() {
 
-        if(nextLevelCache instanceof Cache) return this.resolveRamAccessTime();
+        if(nextLevelCache instanceof final Cache nextCache) return nextCache.resolveRamAccessTime();
         return nextLevelCache.getAccessTime();
     }
 

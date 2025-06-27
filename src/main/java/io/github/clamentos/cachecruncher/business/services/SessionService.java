@@ -44,9 +44,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 
 ///..
-import org.springframework.scheduling.annotation.Scheduled;
-
-///..
 import org.springframework.stereotype.Service;
 
 ///..
@@ -91,6 +88,8 @@ public class SessionService {
         this.sessionIdLength = environment.getProperty("cache-cruncher.auth.sessionIdLength", Integer.class, 32);
         this.maxSessionsPerUser = environment.getProperty("cache-cruncher.auth.maxSessionsPerUser", Integer.class, 2);
         this.maxTotalSessions = environment.getProperty("cache-cruncher.auth.maxTotalSessions", Integer.class, 25_000);
+
+        sessionDao.deleteExpired();
 
         for(final Session session : sessionDao.selectAll()) {
 
@@ -196,47 +195,42 @@ public class SessionService {
         return userSessionCounters.size();
     }
 
-    ///.
-    @Scheduled(cron = "0 */5 * * * *")
-    protected void removeAllExpired() {
+    ///..
+    public void cleanExpiredTask() {
 
         log.info("Starting expired session cleaning task...");
 
         final Set<String> expiredSessionIds = new HashSet<>();
         final long now = System.currentTimeMillis();
 
-        int expiredCount = 0;
-        int deletedFromDbCount = 0;
-        int deletedFromSessionsCount = 0;
-
         for(final Map.Entry<String, Session> session : sessions.entrySet()) {
 
             if(session.getValue().isExpired(now)) {
 
                 expiredSessionIds.add(session.getValue().getId());
-                expiredCount++;
             }
         }
 
         try {
 
-            deletedFromDbCount = sessionDao.deleteAll(expiredSessionIds);
+            int deletedFromSessionsCount = 0;
+            final int deletedFromDbCount = sessionDao.deleteAll(expiredSessionIds);
 
             for(final String expiredSessionId : expiredSessionIds) {
 
                 final Session removedSession = sessions.remove(expiredSessionId);
+                deletedFromSessionsCount++;
 
                 if(removedSession != null && userSessionCounters.get(removedSession.getUserId()).decrementAndGet() <= 0) {
 
                     userSessionCounters.remove(removedSession.getUserId());
-                    deletedFromSessionsCount++;
                 }
             }
 
             log.info(
 
                 "Expired session cleaning task completed, expired: {}, deletedFromDb: {}, deletedFromSessions: {}",
-                expiredCount, deletedFromDbCount, deletedFromSessionsCount
+                expiredSessionIds.size(), deletedFromDbCount, deletedFromSessionsCount
             );
         }
 

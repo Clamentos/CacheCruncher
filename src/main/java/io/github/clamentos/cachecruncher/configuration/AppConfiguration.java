@@ -1,7 +1,23 @@
 package io.github.clamentos.cachecruncher.configuration;
 
 ///
+import io.github.clamentos.cachecruncher.business.services.SessionService;
+
+///..
+import io.github.clamentos.cachecruncher.monitoring.logging.DatabaseLogsWriter;
+
+///..
+import io.github.clamentos.cachecruncher.monitoring.status.ApplicationStatusService;
+
+///..
+import io.github.clamentos.cachecruncher.utility.MaintenanceService;
+
+///..
 import io.github.clamentos.cachecruncher.web.interceptors.AuthFilter;
+import io.github.clamentos.cachecruncher.web.interceptors.RateLimiter;
+
+///.
+import java.time.Duration;
 
 ///.
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +45,10 @@ import org.springframework.scheduling.concurrent.SimpleAsyncTaskScheduler;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 ///..
+import org.springframework.scheduling.support.CronTrigger;
+import org.springframework.scheduling.support.PeriodicTrigger;
+
+///..
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -41,6 +61,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class AppConfiguration implements WebMvcConfigurer {
 
     ///
+    private static final String SCHEDULING = "cache-cruncher.scheduling.";
+
+    ///..
     private final AuthFilter authFilter;
 
     ///
@@ -59,12 +82,32 @@ public class AppConfiguration implements WebMvcConfigurer {
 
     ///
     @Bean
-    public SimpleAsyncTaskScheduler taskScheduler() {
+    public SimpleAsyncTaskScheduler taskScheduler(
+
+        final SessionService sessionService,
+        final DatabaseLogsWriter databaseLogsWriter,
+        final ApplicationStatusService applicationStatusService,
+        final MaintenanceService maintenanceService,
+        final RateLimiter rateLimiter,
+        final Environment environment
+    ) {
 
         final SimpleAsyncTaskScheduler scheduler = new SimpleAsyncTaskScheduler();
 
         scheduler.setTargetTaskExecutor(new SimpleAsyncTaskExecutor("CacheCruncherTask-"));
         scheduler.setVirtualThreads(true);
+
+        final String logsTaskCron = environment.getProperty(SCHEDULING + "logsTaskCron", String.class, "0 */5 * * * *");
+        final String maintenanceTaskCron = environment.getProperty(SCHEDULING + "maintenanceTaskCron", String.class, "0 0 0 * * *");
+        final int metricsTaskRate = environment.getProperty(SCHEDULING + "metricsTaskRate", Integer.class, 1_000);
+        final int replenishTaskRate = environment.getProperty(SCHEDULING + "replenishTaskRate", Integer.class, 10_000);
+        final String sessionTaskCron = environment.getProperty(SCHEDULING + "sessionTaskCron", String.class, "0 */5 * * * *");
+
+        scheduler.schedule(sessionService::cleanExpiredTask, new CronTrigger(sessionTaskCron));
+        scheduler.schedule(databaseLogsWriter::dumpTask, new CronTrigger(logsTaskCron));
+        scheduler.schedule(applicationStatusService::rolloverTask, new PeriodicTrigger(Duration.ofMillis(metricsTaskRate)));
+        scheduler.schedule(maintenanceService::cleanByRetentionTask, new CronTrigger(maintenanceTaskCron));
+        scheduler.schedule(rateLimiter::replenishTask, new PeriodicTrigger(Duration.ofMillis(replenishTaskRate)));
 
         return scheduler;
     }
