@@ -1,11 +1,8 @@
 package io.github.clamentos.cachecruncher.monitoring.status;
 
 ///
-import io.github.clamentos.cachecruncher.error.ErrorCode;
-import io.github.clamentos.cachecruncher.error.ErrorDetails;
-
-///..
 import io.github.clamentos.cachecruncher.utility.Pair;
+import io.github.clamentos.cachecruncher.utility.PropertyProvider;
 
 ///.
 import java.util.ArrayList;
@@ -25,10 +22,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 ///.
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.BeanCreationException;
 
 ///..
-import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.http.HttpStatus;
@@ -53,14 +50,13 @@ public final class RequestsMetrics {
 
     ///..
     private final List<Pair<Short, Short>> breakpoints;
-    private final int outliersStartingBoundary;
 
     ///..
     private final long rolloverTime;
 
     ///
     @Autowired
-    public RequestsMetrics(final Environment environment) throws IllegalArgumentException {
+    public RequestsMetrics(final PropertyProvider propertyProvider) throws BeanCreationException {
 
         latencyTracker = new ConcurrentHashMap<>();
         latencyTrackerShadow = new ConcurrentHashMap<>();
@@ -70,10 +66,9 @@ public final class RequestsMetrics {
         direction = new AtomicBoolean();
         currentTimeSlot = new AtomicLong(now);
 
-        final String breakpointsProp = environment.getProperty(
+        final String breakpointsProp = propertyProvider.getString(
 
             "cache-cruncher.monitoring.status.breakpoints",
-            String.class,
             "0-10,11-20,21-50,51-100,101-200,201-500"
         );
 
@@ -82,29 +77,22 @@ public final class RequestsMetrics {
 
         if(breakpointsSplits.length == 0) {
 
-            throw this.fail("Property \"cache-cruncher.monitoring.status.breakpoints\" must have at least 1 element");
+            throw new BeanCreationException("Property \"cache-cruncher.monitoring.status.breakpoints\" must have at least 1 element");
         }
 
         for(final String breakpoint : breakpointsSplits) {
 
             final String[] boundaries = breakpoint.split("-");
-            if(boundaries.length != 2) throw this.fail("Breakpoints must be formatted: \"X-Y\"");
+            if(boundaries.length != 2) throw new BeanCreationException("Breakpoints must be formatted: \"X-Y\"");
 
             final short boundaryStart = Short.parseShort(boundaries[0]);
             final short boundaryEnd = Short.parseShort(boundaries[1]);
 
-            if(boundaryStart >= boundaryEnd) throw this.fail("Breakpoints must respect: Y > X");
+            if(boundaryStart >= boundaryEnd) throw new BeanCreationException("Breakpoints must respect: Y > X");
             breakpoints.add(new Pair<>(boundaryStart, boundaryEnd));
         }
 
-        outliersStartingBoundary = environment.getProperty(
-
-            "cache-cruncher.monitoring.status.outliersStartingBoundary",
-            Integer.class,
-            501
-        );
-
-        rolloverTime = environment.getProperty("cache-cruncher.monitoring.status.rolloverTime", Long.class, 300_000L);
+        rolloverTime = propertyProvider.getLong("cache-cruncher.monitoring.status.rolloverTime", 300_000L, 1, Long.MAX_VALUE);
         rolloverTimeSlot = new AtomicLong(now + rolloverTime);
     }
 
@@ -125,7 +113,7 @@ public final class RequestsMetrics {
 
             .computeIfAbsent(slotValue, _ -> new ConcurrentHashMap<>())
             .computeIfAbsent(path, _ -> new ConcurrentHashMap<>())
-            .computeIfAbsent(status, _ -> new LatencyDistribution(breakpoints, outliersStartingBoundary))
+            .computeIfAbsent(status, _ -> new LatencyDistribution(breakpoints))
             .update(elapsed)
         ;
     }
@@ -176,12 +164,6 @@ public final class RequestsMetrics {
         }
 
         return metrics;
-    }
-
-    ///.
-    private IllegalArgumentException fail(final String message) {
-
-        return new IllegalArgumentException(new ErrorDetails(ErrorCode.GENERIC, message));
     }
 
     ///

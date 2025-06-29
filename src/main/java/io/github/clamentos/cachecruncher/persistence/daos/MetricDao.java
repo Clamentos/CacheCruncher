@@ -6,6 +6,9 @@ import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
 ///..
 import io.github.clamentos.cachecruncher.persistence.entities.Metric;
 
+///..
+import io.github.clamentos.cachecruncher.utility.PropertyProvider;
+
 ///.
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -16,10 +19,10 @@ import java.util.Collection;
 import java.util.List;
 
 ///.
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.BeanCreationException;
 
 ///..
-import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -45,9 +48,9 @@ public class MetricDao extends Dao {
 
     ///
     @Autowired
-    public MetricDao(final JdbcTemplate jdbcTemplate, final Environment environment) {
+    public MetricDao(final JdbcTemplate jdbcTemplate, final PropertyProvider propertyProvider) throws BeanCreationException {
 
-        super(jdbcTemplate, environment);
+        super(jdbcTemplate, propertyProvider);
     }
 
     ///

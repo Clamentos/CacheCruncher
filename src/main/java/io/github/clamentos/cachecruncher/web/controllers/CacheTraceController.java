@@ -5,7 +5,9 @@ import io.github.clamentos.cachecruncher.business.services.CacheTraceService;
 
 ///..
 import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
+import io.github.clamentos.cachecruncher.error.exceptions.DeserializationException;
 import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundException;
+import io.github.clamentos.cachecruncher.error.exceptions.SerializationException;
 import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
 
 ///..
@@ -49,7 +51,8 @@ public class CacheTraceController {
 
     ///
     @PostMapping(consumes = "application/json")
-    public ResponseEntity<Void> create(@RequestBody final CacheTraceDto cacheTrace) throws DatabaseException, ValidationException {
+    public ResponseEntity<Void> create(@RequestBody final CacheTraceDto cacheTrace)
+    throws DatabaseException, SerializationException, ValidationException {
 
         cacheTraceService.create(cacheTrace);
         return ResponseEntity.ok().build();
@@ -57,7 +60,8 @@ public class CacheTraceController {
 
     ///..
     @GetMapping(produces = "application/json")
-    public ResponseEntity<CacheTraceDto> getById(@RequestParam final long traceId) throws DatabaseException, EntityNotFoundException {
+    public ResponseEntity<CacheTraceDto> getById(@RequestParam final long traceId)
+    throws DatabaseException, DeserializationException, EntityNotFoundException {
 
         return ResponseEntity.ok(cacheTraceService.getById(traceId));
     }
@@ -72,7 +76,7 @@ public class CacheTraceController {
         @RequestParam(required = false) final Long updatedAtStart,
         @RequestParam(required = false) final Long updatedAtEnd
 
-    ) throws DatabaseException, ValidationException {
+    ) throws DatabaseException, DeserializationException, ValidationException {
 
         return ResponseEntity.ok(cacheTraceService.getByFilter(
 
@@ -87,7 +91,7 @@ public class CacheTraceController {
     ///..
     @PatchMapping(consumes = "application/json")
     public ResponseEntity<Void> update(@RequestBody final CacheTraceDto cacheTrace)
-    throws DatabaseException, EntityNotFoundException, ValidationException {
+    throws DatabaseException, EntityNotFoundException, SerializationException, ValidationException {
 
         cacheTraceService.update(cacheTrace);
         return ResponseEntity.ok().build();

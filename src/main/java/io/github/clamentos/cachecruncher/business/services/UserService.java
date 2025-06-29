@@ -21,6 +21,9 @@ import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
 import io.github.clamentos.cachecruncher.error.exceptions.WrongPasswordException;
 
 ///..
+import io.github.clamentos.cachecruncher.persistence.UserRole;
+
+///..
 import io.github.clamentos.cachecruncher.persistence.daos.UserDao;
 
 ///..
@@ -29,6 +32,7 @@ import io.github.clamentos.cachecruncher.persistence.entities.User;
 
 ///..
 import io.github.clamentos.cachecruncher.utility.Pair;
+import io.github.clamentos.cachecruncher.utility.PropertyProvider;
 
 ///..
 import io.github.clamentos.cachecruncher.web.dtos.AuthDto;
@@ -40,10 +44,10 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 ///.
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.BeanCreationException;
 
 ///..
-import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.mail.javamail.JavaMailSender;
@@ -86,18 +90,19 @@ public class UserService {
         final VerificationService verificationService,
         final UserDao userDao,
         final JavaMailSender javaMailSender,
-        final Environment environment
-    ) {
+        final PropertyProvider propertyProvider
+
+    ) throws BeanCreationException {
 
         this.userValidator = userValidator;
         this.sessionService = sessionService;
         this.verificationService = verificationService;
         this.userDao = userDao;
 
-        bcryptEffort = environment.getProperty("cache-cruncher.auth.bcryptEffort", Integer.class, 12);
-        loginFailures = environment.getProperty("cache-cruncher.auth.loginFailures", Integer.class, 5);
-        loginFailuresCap = loginFailures + environment.getProperty("cache-cruncher.auth.loginFailuresCap", Integer.class, 3);
-        userLockTime = environment.getProperty("cache-cruncher.auth.userLockTime", Long.class, 60_000L);
+        bcryptEffort = propertyProvider.getInteger("cache-cruncher.auth.bcryptEffort", 12, 10, 16);
+        loginFailures = propertyProvider.getInteger("cache-cruncher.auth.loginFailures", 5, 2, Integer.MAX_VALUE);
+        loginFailuresCap = loginFailures + propertyProvider.getInteger("cache-cruncher.auth.loginFailuresCap", 3, 1, Integer.MAX_VALUE);
+        userLockTime = propertyProvider.getLong("cache-cruncher.auth.userLockTime", 60_000L, 10_000L, Integer.MAX_VALUE);
     }
 
     ///
@@ -110,10 +115,11 @@ public class UserService {
         final String password = authDto.getPassword();
 
         userValidator.validate(password);
-        if(userDao.exists(email)) throw new EntityAlreadyExistsException(new ErrorDetails(ErrorCode.USER_ALREADY_EXISTS, email));
+
+        if(userDao.exists(email)) throw new EntityAlreadyExistsException(ErrorCode.USER_ALREADY_EXISTS, email);
 
         final String encryptedPassword = BCrypt.withDefaults().hashToString(bcryptEffort, password.toCharArray());
-        userDao.insert(new User(-1L, null, System.currentTimeMillis(), null, email, encryptedPassword, (short)0, false));
+        userDao.insert(new User(-1L, null, System.currentTimeMillis(), null, email, encryptedPassword, (short)0, UserRole.DEFAULT));
 
         return verificationService.sendVerificationEmail(email);
     }
@@ -135,13 +141,9 @@ public class UserService {
         final String email = verificationService.verify(token, now);
         final User user = userDao.selectByEmail(email);
 
-        if(user == null) throw new EntityNotFoundException(new ErrorDetails(ErrorCode.USER_NOT_FOUND, email));
-        if(user.getValidatedAt() != null) throw new AuthenticationException(new ErrorDetails(ErrorCode.USER_ALREADY_VALIDATED, email));
-
-        if(!userDao.updateForEmailValidation(email, now)) {
-
-            throw new EntityNotFoundException(new ErrorDetails(ErrorCode.USER_NOT_FOUND, email));
-        }
+        if(user == null) throw new EntityNotFoundException(ErrorCode.USER_NOT_FOUND, email);
+        if(user.getValidatedAt() != null) throw new AuthenticationException(ErrorCode.USER_ALREADY_VALIDATED, email);
+        if(!userDao.updateForEmailValidation(email, now)) throw new EntityNotFoundException(ErrorCode.USER_NOT_FOUND, email);
     }
 
     ///..
@@ -160,12 +162,12 @@ public class UserService {
         final User user = userDao.selectByEmail(email);
         final long now = System.currentTimeMillis();
 
-        if(user == null) throw new AuthenticationException(new ErrorDetails(ErrorCode.USER_NOT_FOUND, email));
-        if(user.getValidatedAt() == null) throw new AuthenticationException(new ErrorDetails(ErrorCode.USER_NOT_VALIDATED, email));
+        if(user == null) throw new AuthenticationException(ErrorCode.FAILED_LOGIN, email);
+        if(user.getValidatedAt() == null) throw new AuthenticationException(ErrorCode.USER_NOT_VALIDATED, email);
 
         if(user.getLockedUntil() != null && user.getLockedUntil() >= now) {
 
-            throw new AuthorizationException(new ErrorDetails(ErrorCode.USER_LOCKED, user.getLockedUntil()));
+            throw new AuthorizationException(ErrorCode.USER_LOCKED, user.getLockedUntil());
         }
 
         final short failedAccesses = user.getFailedAccesses();
@@ -174,7 +176,7 @@ public class UserService {
 
             if(failedAccesses > 0) userDao.updateForLogin(user.getId(), user.getLockedUntil(), (short)0);
 
-            final Session session = sessionService.generate(user.getId(), user.getEmail(), user.isAdmin(), device);
+            final Session session = sessionService.generate(user.getId(), user.getEmail(), user.getRole(), device);
             user.setPassword(null);
 
             log.info("User {} logged in", user.getId());
@@ -200,7 +202,7 @@ public class UserService {
             userDao.updateForLogin(user.getId(), lockedUntil, (short)(failedAccesses + 1));
             if(doLock) this.logoutAll(user.getId());
 
-            throw new WrongPasswordException(new ErrorDetails(ErrorCode.WRONG_PASSWORD));
+            throw new WrongPasswordException(ErrorCode.FAILED_LOGIN);
         }
     }
 
@@ -210,7 +212,7 @@ public class UserService {
     throws AuthenticationException, AuthorizationException, DatabaseException {
 
         sessionService.remove(session.getId());
-        return sessionService.generate(session.getUserId(), session.getEmail(), session.isAdmin(), device);
+        return sessionService.generate(session.getUserId(), session.getEmail(), session.getRole(), device);
     }
 
     ///..
@@ -254,12 +256,9 @@ public class UserService {
 
     ///..
     @Transactional(rollbackFor = CacheCruncherException.class)
-    public void updatePrivilege(final long userId, final boolean privilege) throws DatabaseException, EntityNotFoundException {
+    public void updatePrivilege(final long userId, final UserRole role) throws DatabaseException, EntityNotFoundException {
 
-        if(!userDao.updatePrivilege(userId, privilege)) {
-
-            throw new EntityNotFoundException(new ErrorDetails(ErrorCode.USER_NOT_FOUND, userId));
-        }
+        if(!userDao.updateRole(userId, role)) throw new EntityNotFoundException(ErrorCode.USER_NOT_FOUND, userId);
     }
 
     ///..
@@ -267,10 +266,10 @@ public class UserService {
     public void delete(final long userId, final Session session)
     throws AuthenticationException, AuthorizationException, DatabaseException, EntityNotFoundException {
 
-        final Boolean privilege = userDao.getPrivilege(userId);
+        final UserRole role = userDao.getPrivilege(userId);
 
-        if(privilege == null) throw new EntityNotFoundException(new ErrorDetails(ErrorCode.USER_NOT_FOUND, userId));
-        if(userId != session.getUserId()) sessionService.check(session.getId(), true, "Cannot delete a user other than self");
+        if(role == null) throw new EntityNotFoundException(ErrorCode.USER_NOT_FOUND, userId);
+        if(userId != session.getUserId()) sessionService.check(session.getId(), UserRole.ADMIN, "Cannot delete a user other than self");
 
         userDao.delete(userId);
     }

@@ -3,6 +3,9 @@ package io.github.clamentos.cachecruncher.persistence.daos;
 ///
 import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
 
+///..
+import io.github.clamentos.cachecruncher.utility.PropertyProvider;
+
 ///.
 import java.util.function.Supplier;
 
@@ -10,7 +13,7 @@ import java.util.function.Supplier;
 import lombok.Getter;
 
 ///.
-import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.BeanCreationException;
 
 ///..
 import org.springframework.dao.DataAccessException;
@@ -31,10 +34,10 @@ public abstract class Dao {
     private final int batchSize;
 
     ///
-    protected Dao(final JdbcTemplate jdbcTemplate, final Environment environment) {
+    protected Dao(final JdbcTemplate jdbcTemplate, final PropertyProvider propertyProvider) throws BeanCreationException {
 
         this.jdbcTemplate = jdbcTemplate;
-        batchSize = environment.getProperty("cache-cruncher.jdbc.batchSize", Integer.class, 64);
+        batchSize = propertyProvider.getInteger("cache-cruncher.jdbc.batchSize", 64, 1, Integer.MAX_VALUE);
     }
 
     ///
@@ -42,7 +45,7 @@ public abstract class Dao {
 
         try {
 
-                return jdbcTemplate.update(
+            return jdbcTemplate.update(
 
                 "DELETE FROM " + tableName + " WHERE id=?",
                 preparedStatement -> preparedStatement.setLong(1, id)

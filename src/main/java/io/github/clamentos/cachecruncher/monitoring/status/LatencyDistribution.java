@@ -20,10 +20,9 @@ public final class LatencyDistribution {
 
     ///..
     private final AtomicInteger outliersCounter;
-    private final String outliersStartingBoundary;
 
     ///
-    public LatencyDistribution(final List<Pair<Short, Short>> breakpoints, final int outliersStartingBoundary) {
+    public LatencyDistribution(final List<Pair<Short, Short>> breakpoints) {
 
         buckets = new ArrayList<>(breakpoints.size());
 
@@ -33,7 +32,6 @@ public final class LatencyDistribution {
         }
 
         outliersCounter = new AtomicInteger();
-        this.outliersStartingBoundary = Integer.toString(outliersStartingBoundary) + "+";
     }
 
     ///
@@ -61,7 +59,7 @@ public final class LatencyDistribution {
             distribution.put(bucket.getLowerBound() + "-" + bucket.getUpperBound(), bucket.getCount().get());
         }
 
-        distribution.put(outliersStartingBoundary, outliersCounter.get());
+        distribution.put(Integer.toString(buckets.get(buckets.size() - 1).getUpperBound() + 1) + "+", outliersCounter.get());
         return distribution;
     }
 

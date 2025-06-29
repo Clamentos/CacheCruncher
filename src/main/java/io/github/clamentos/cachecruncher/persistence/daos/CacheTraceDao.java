@@ -9,6 +9,9 @@ import io.github.clamentos.cachecruncher.mappers.CacheTraceMapper;
 ///..
 import io.github.clamentos.cachecruncher.persistence.entities.CacheTrace;
 
+///..
+import io.github.clamentos.cachecruncher.utility.PropertyProvider;
+
 ///.
 import java.sql.JDBCType;
 import java.sql.ResultSet;
@@ -19,10 +22,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 ///.
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.BeanCreationException;
 
 ///..
-import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -55,9 +58,15 @@ public class CacheTraceDao extends Dao {
 
     ///
     @Autowired
-    public CacheTraceDao(final JdbcTemplate jdbcTemplate, final Environment environment, final CacheTraceMapper cacheTraceMapper) {
+    public CacheTraceDao(
 
-        super(jdbcTemplate, environment);
+        final JdbcTemplate jdbcTemplate,
+        final PropertyProvider propertyProvider,
+        final CacheTraceMapper cacheTraceMapper
+
+    ) throws BeanCreationException {
+
+        super(jdbcTemplate, propertyProvider);
         this.cacheTraceMapper = cacheTraceMapper;
     }
 

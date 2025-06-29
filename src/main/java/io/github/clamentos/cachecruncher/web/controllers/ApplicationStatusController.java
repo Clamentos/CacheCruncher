@@ -2,6 +2,7 @@ package io.github.clamentos.cachecruncher.web.controllers;
 
 ///
 import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
+import io.github.clamentos.cachecruncher.error.exceptions.DeserializationException;
 import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
 
 ///..
@@ -85,7 +86,7 @@ public class ApplicationStatusController {
 
         @RequestBody final RangeSearchFilterDto responseInfoSearchFilter
 
-    ) throws DatabaseException, ValidationException {
+    ) throws DatabaseException, DeserializationException, ValidationException {
 
         return ResponseEntity.ok(applicationStatusService.getResponsesInfoByFilter(responseInfoSearchFilter));
     }

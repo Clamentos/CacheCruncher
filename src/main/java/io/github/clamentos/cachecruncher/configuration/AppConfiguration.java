@@ -1,6 +1,7 @@
 package io.github.clamentos.cachecruncher.configuration;
 
 ///
+import io.github.clamentos.cachecruncher.business.services.MaintenanceService;
 import io.github.clamentos.cachecruncher.business.services.SessionService;
 
 ///..
@@ -10,7 +11,7 @@ import io.github.clamentos.cachecruncher.monitoring.logging.DatabaseLogsWriter;
 import io.github.clamentos.cachecruncher.monitoring.status.ApplicationStatusService;
 
 ///..
-import io.github.clamentos.cachecruncher.utility.MaintenanceService;
+import io.github.clamentos.cachecruncher.utility.PropertyProvider;
 
 ///..
 import io.github.clamentos.cachecruncher.web.interceptors.AuthFilter;
@@ -20,6 +21,9 @@ import io.github.clamentos.cachecruncher.web.interceptors.RateLimiter;
 import java.time.Duration;
 
 ///.
+import org.springframework.beans.factory.BeanCreationException;
+
+///..
 import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
@@ -28,9 +32,6 @@ import org.springframework.context.annotation.Configuration;
 
 ///..
 import org.springframework.core.Ordered;
-
-///..
-import org.springframework.core.env.Environment;
 
 ///..
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
@@ -89,19 +90,20 @@ public class AppConfiguration implements WebMvcConfigurer {
         final ApplicationStatusService applicationStatusService,
         final MaintenanceService maintenanceService,
         final RateLimiter rateLimiter,
-        final Environment environment
-    ) {
+        final PropertyProvider propertyProvider
+
+    ) throws BeanCreationException {
 
         final SimpleAsyncTaskScheduler scheduler = new SimpleAsyncTaskScheduler();
 
         scheduler.setTargetTaskExecutor(new SimpleAsyncTaskExecutor("CacheCruncherTask-"));
         scheduler.setVirtualThreads(true);
 
-        final String logsTaskCron = environment.getProperty(SCHEDULING + "logsTaskCron", String.class, "0 */5 * * * *");
-        final String maintenanceTaskCron = environment.getProperty(SCHEDULING + "maintenanceTaskCron", String.class, "0 0 0 * * *");
-        final int metricsTaskRate = environment.getProperty(SCHEDULING + "metricsTaskRate", Integer.class, 1_000);
-        final int replenishTaskRate = environment.getProperty(SCHEDULING + "replenishTaskRate", Integer.class, 10_000);
-        final String sessionTaskCron = environment.getProperty(SCHEDULING + "sessionTaskCron", String.class, "0 */5 * * * *");
+        final String logsTaskCron = propertyProvider.getString(SCHEDULING + "logsTaskCron", "0 */5 * * * *");
+        final String maintenanceTaskCron = propertyProvider.getString(SCHEDULING + "maintenanceTaskCron", "0 0 0 * * *");
+        final int metricsTaskRate = propertyProvider.getInteger(SCHEDULING + "metricsTaskRate", 1_000, 1_000, Integer.MAX_VALUE);
+        final int replenishTaskRate = propertyProvider.getInteger(SCHEDULING + "replenishTaskRate", 10_000, 1_000, Integer.MAX_VALUE);
+        final String sessionTaskCron = propertyProvider.getString(SCHEDULING + "sessionTaskCron", "0 */5 * * * *");
 
         scheduler.schedule(sessionService::cleanExpiredTask, new CronTrigger(sessionTaskCron));
         scheduler.schedule(databaseLogsWriter::dumpTask, new CronTrigger(logsTaskCron));
@@ -114,22 +116,36 @@ public class AppConfiguration implements WebMvcConfigurer {
 
     ///..
     @Bean
-    public TaskExecutor simulationsExecutor(final Environment environment) {
+    public TaskExecutor simulationsExecutor(final PropertyProvider propertyProvider) throws BeanCreationException {
 
         final ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 
-        executor.setCorePoolSize(environment.getProperty("cache-cruncher.simulation.executorPool.minThreads", Integer.class, 1));
-        executor.setMaxPoolSize(environment.getProperty("cache-cruncher.simulation.executorPool.maxThreads", Integer.class, 8));
-        executor.setQueueCapacity(environment.getProperty("cache-cruncher.simulation.executorPool.maxQueueSize", Integer.class, 1_024));
+        executor.setCorePoolSize(propertyProvider.getInteger(
+
+            "cache-cruncher.simulation.executorPool.minThreads",
+            1, 1, Integer.MAX_VALUE
+        ));
+
+        executor.setMaxPoolSize(propertyProvider.getInteger(
+
+            "cache-cruncher.simulation.executorPool.maxThreads",
+            8, 1, Integer.MAX_VALUE
+        ));
+
+        executor.setQueueCapacity(propertyProvider.getInteger(
+
+            "cache-cruncher.simulation.executorPool.maxQueueSize",
+            1_000, 1, Integer.MAX_VALUE
+        ));
+
         executor.setThreadNamePrefix("CacheCruncherSimulator-");
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setVirtualThreads(false);
 
-        executor.setAwaitTerminationSeconds(environment.getProperty(
+        executor.setAwaitTerminationSeconds(propertyProvider.getInteger(
 
             "cache-cruncher.simulation.executorPool.terminationTimeout",
-            Integer.class,
-            60
+            60, 1, Integer.MAX_VALUE
         ));
 
         executor.initialize();

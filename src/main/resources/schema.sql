@@ -70,7 +70,12 @@ CREATE TABLE IF NOT EXISTS user (
     email                   VARCHAR(64)      NOT NULL UNIQUE,
     password                VARCHAR(128)     NOT NULL,
     failed_accesses         SMALLINT         NOT NULL,
-    is_admin                BOOLEAN          NOT NULL
+
+    role                   ENUM(
+                                'DEFAULT',
+                                'UPLOADER',
+                                'ADMIN'
+                            )                NOT NULL
 );
 
 ---..
@@ -82,7 +87,12 @@ CREATE TABLE IF NOT EXISTS session (
     email                   VARCHAR(64)      NOT NULL,
     device                  VARCHAR(128)     NOT NULL,
     id                      VARCHAR(128)     PRIMARY KEY,
-    is_admin                BOOLEAN          NOT NULL,
+
+    role                   ENUM(
+                                'DEFAULT',
+                                'UPLOADER',
+                                'ADMIN'
+                            )                NOT NULL,
 
     CONSTRAINT session_fk FOREIGN KEY(user_id) REFERENCES user(id) ON DELETE CASCADE
 );

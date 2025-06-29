@@ -2,19 +2,21 @@ package io.github.clamentos.cachecruncher.business.services;
 
 ///
 import io.github.clamentos.cachecruncher.error.ErrorCode;
-import io.github.clamentos.cachecruncher.error.ErrorDetails;
 
 ///..
 import io.github.clamentos.cachecruncher.error.exceptions.AuthenticationException;
 import io.github.clamentos.cachecruncher.error.exceptions.AuthorizationException;
 import io.github.clamentos.cachecruncher.error.exceptions.CacheCruncherException;
 import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
-
+import io.github.clamentos.cachecruncher.persistence.UserRole;
 ///..
 import io.github.clamentos.cachecruncher.persistence.daos.SessionDao;
 
 ///..
 import io.github.clamentos.cachecruncher.persistence.entities.Session;
+
+///..
+import io.github.clamentos.cachecruncher.utility.PropertyProvider;
 
 ///.
 import java.security.SecureRandom;
@@ -38,10 +40,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 
 ///.
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.BeanCreationException;
 
 ///..
-import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.stereotype.Service;
@@ -75,7 +77,8 @@ public class SessionService {
 
     ///
     @Autowired
-    public SessionService(final SessionDao sessionDao, final Environment environment) throws DatabaseException {
+    public SessionService(final SessionDao sessionDao, final PropertyProvider propertyProvider)
+    throws BeanCreationException, DatabaseException {
 
         this.sessionDao = sessionDao;
 
@@ -84,10 +87,10 @@ public class SessionService {
         userSessionCounters = new ConcurrentHashMap<>();
         sessionsCounter = new AtomicInteger();
 
-        this.sessionDuration = environment.getProperty("cache-cruncher.auth.sessionDuration", Long.class, 3_600_000L);
-        this.sessionIdLength = environment.getProperty("cache-cruncher.auth.sessionIdLength", Integer.class, 32);
-        this.maxSessionsPerUser = environment.getProperty("cache-cruncher.auth.maxSessionsPerUser", Integer.class, 2);
-        this.maxTotalSessions = environment.getProperty("cache-cruncher.auth.maxTotalSessions", Integer.class, 25_000);
+        this.sessionDuration = propertyProvider.getLong("cache-cruncher.auth.sessionDuration", 3_600_000L, 60_000L, Long.MAX_VALUE);
+        this.sessionIdLength = propertyProvider.getInteger("cache-cruncher.auth.sessionIdLength", 32, 16, Integer.MAX_VALUE);
+        this.maxSessionsPerUser = propertyProvider.getInteger("cache-cruncher.auth.maxSessionsPerUser", 2, 1, Integer.MAX_VALUE);
+        this.maxTotalSessions = propertyProvider.getInteger("cache-cruncher.auth.maxTotalSessions", 25_000, 1, Integer.MAX_VALUE);
 
         sessionDao.deleteExpired();
 
@@ -103,26 +106,26 @@ public class SessionService {
 
     ///
     @Transactional(rollbackFor = CacheCruncherException.class)
-    public Session generate(final long userId, final String email, final boolean isAdmin, final String device)
+    public Session generate(final long userId, final String email, final UserRole role, final String device)
     throws AuthorizationException, DatabaseException {
 
         if(sessionsCounter.getAndUpdate(current -> this.updateCounter(current, maxTotalSessions)) >= maxTotalSessions) {
 
-            throw new AuthorizationException(new ErrorDetails(ErrorCode.TOO_MANY_OVERALL_SESSIONS, maxTotalSessions));
+            throw new AuthorizationException(ErrorCode.TOO_MANY_OVERALL_SESSIONS, maxTotalSessions);
         }
 
         final AtomicInteger userSessionCount = userSessionCounters.computeIfAbsent(userId, _ -> new AtomicInteger());
 
         if(userSessionCount.getAndUpdate(current -> this.updateCounter(current, maxSessionsPerUser)) >= maxSessionsPerUser) {
 
-            throw new AuthorizationException(new ErrorDetails(ErrorCode.TOO_MANY_SESSIONS, maxSessionsPerUser));
+            throw new AuthorizationException(ErrorCode.TOO_MANY_SESSIONS, maxSessionsPerUser);
         }
 
         final byte[] rawSessionId = new byte[sessionIdLength];
         secureRandom.nextBytes(rawSessionId);
 
         final String sessionId = Base64.getEncoder().encodeToString(rawSessionId);
-        final Session session = new Session(userId, System.currentTimeMillis() + sessionDuration, email, device, sessionId, isAdmin);
+        final Session session = new Session(userId, System.currentTimeMillis() + sessionDuration, email, device, sessionId, role);
 
         try {
 
@@ -142,20 +145,20 @@ public class SessionService {
     }
 
     ///..
-    public Session check(final String sessionId, final boolean requiresAdmin, final String message)
+    public Session check(final String sessionId, final UserRole minimumRole, final String message)
     throws AuthenticationException, AuthorizationException {
 
         final Session session = sessions.get(sessionId);
-        if(session == null) throw new AuthorizationException(new ErrorDetails(ErrorCode.SESSION_NOT_FOUND));
+        if(session == null) throw new AuthenticationException(ErrorCode.SESSION_NOT_FOUND);
 
         if(session.isExpired(System.currentTimeMillis())) {
 
-            throw new AuthenticationException(new ErrorDetails(ErrorCode.EXPIRED_SESSION, session.getExpiresAt()));
+            throw new AuthenticationException(ErrorCode.EXPIRED_SESSION, session.getExpiresAt());
         }
 
-        if(requiresAdmin && !session.isAdmin()) {
+        if(session.getRole().ordinal() < minimumRole.ordinal()) {
 
-            throw new AuthorizationException(new ErrorDetails(ErrorCode.NOT_ENOUGH_PRIVILEGES, message));
+            throw new AuthorizationException(ErrorCode.NOT_ENOUGH_PRIVILEGES, message);
         }
 
         return session;
@@ -166,7 +169,7 @@ public class SessionService {
     public void remove(final String sessionId) throws AuthenticationException, DatabaseException {
 
         final Session sessionToBeRemoved = sessions.get(sessionId);
-        if(sessionToBeRemoved == null) throw new AuthenticationException(new ErrorDetails(ErrorCode.SESSION_NOT_FOUND));
+        if(sessionToBeRemoved == null) throw new AuthenticationException(ErrorCode.SESSION_NOT_FOUND);
 
         sessionDao.delete(sessionToBeRemoved.getId());
 
@@ -243,7 +246,7 @@ public class SessionService {
     ///.
     private int updateCounter(final int current, final int limit) {
 
-        int attempt = current + 1;
+        final int attempt = current + 1;
         return attempt <= limit ? attempt : current;
     }
 

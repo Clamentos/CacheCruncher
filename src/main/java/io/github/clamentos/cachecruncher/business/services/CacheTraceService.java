@@ -15,12 +15,13 @@ import io.github.clamentos.cachecruncher.business.validation.SimulationArguments
 
 ///..
 import io.github.clamentos.cachecruncher.error.ErrorCode;
-import io.github.clamentos.cachecruncher.error.ErrorDetails;
 
 ///..
 import io.github.clamentos.cachecruncher.error.exceptions.CacheCruncherException;
 import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
+import io.github.clamentos.cachecruncher.error.exceptions.DeserializationException;
 import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundException;
+import io.github.clamentos.cachecruncher.error.exceptions.SerializationException;
 import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
 
 ///..
@@ -34,6 +35,7 @@ import io.github.clamentos.cachecruncher.persistence.entities.CacheTraceBody;
 import io.github.clamentos.cachecruncher.utility.JsonMapper;
 import io.github.clamentos.cachecruncher.utility.MutableInt;
 import io.github.clamentos.cachecruncher.utility.Pair;
+import io.github.clamentos.cachecruncher.utility.PropertyProvider;
 import io.github.clamentos.cachecruncher.utility.Triple;
 
 ///..
@@ -68,10 +70,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 ///.
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.BeanCreationException;
 
 ///..
-import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.stereotype.Service;
@@ -119,8 +121,9 @@ public class CacheTraceService {
         final SimulationArgumentsValidator simulationArgumentsValidator,
         final CacheTraceValidator cacheTraceValidator,
         final JsonMapper jsonMapper,
-        final Environment environment
-    ) {
+        final PropertyProvider propertyProvider
+
+    ) throws BeanCreationException {
 
         this.cacheSimulationService = cacheSimulationService;
         this.cacheTraceDao = cacheTraceDao;
@@ -130,8 +133,8 @@ public class CacheTraceService {
 
         this.jsonMapper = jsonMapper;
 
-        timeout = environment.getProperty("cache-cruncher.simulation.executorPool.timeout", Long.class, 10L);
-        addressRanges = environment.getProperty("cache-cruncher.cache-trace.statistics.addressRanges", Integer.class, 64);
+        timeout = propertyProvider.getLong("cache-cruncher.simulation.executorPool.timeout", 10_000L, 500L, Long.MAX_VALUE);
+        addressRanges = propertyProvider.getInteger("cache-cruncher.cache-trace.statistics.addressRanges", 64, 1, Integer.MAX_VALUE);
 
         completedSimulations = new AtomicLong();
         rejectedSimulations = new AtomicLong();
@@ -139,7 +142,7 @@ public class CacheTraceService {
 
     ///
     @Transactional(rollbackFor = CacheCruncherException.class)
-    public void create(final CacheTraceDto cacheTraceDto) throws DatabaseException, ValidationException {
+    public void create(final CacheTraceDto cacheTraceDto) throws DatabaseException, SerializationException, ValidationException {
 
         cacheTraceValidator.validateForCreate(cacheTraceDto);
         final CacheTraceBody trace = cacheTraceDto.getTrace();
@@ -159,12 +162,12 @@ public class CacheTraceService {
     }
 
     ///..
-    public CacheTraceDto getById(final long traceId) throws DatabaseException, EntityNotFoundException {
+    public CacheTraceDto getById(final long traceId) throws DatabaseException, DeserializationException, EntityNotFoundException {
 
         final CacheTrace cacheTraceEntity = cacheTraceDao.selectById(traceId);
         if(cacheTraceEntity != null) return new CacheTraceDto(cacheTraceEntity, jsonMapper);
 
-        throw this.createNotFoundException(traceId);
+        throw new EntityNotFoundException(ErrorCode.CACHE_TRACE_NOT_FOUND, traceId);
     }
 
     ///..
@@ -176,7 +179,7 @@ public class CacheTraceService {
         final Long updatedAtStart,
         final Long updatedAtEnd
 
-    ) throws DatabaseException, ValidationException {
+    ) throws DatabaseException, DeserializationException, ValidationException {
 
         if(updatedAtStart == null) cacheTraceValidator.requireNull(updatedAtEnd, "updatedAtEnd");
         else cacheTraceValidator.requireNotNull(updatedAtEnd, "updatedAtEnd");
@@ -213,14 +216,15 @@ public class CacheTraceService {
 
     ///..
     @Transactional(rollbackFor = CacheCruncherException.class)
-    public void update(final CacheTraceDto cacheTraceDto) throws DatabaseException, EntityNotFoundException, ValidationException {
+    public void update(final CacheTraceDto cacheTraceDto)
+    throws DatabaseException, EntityNotFoundException, SerializationException, ValidationException {
 
         cacheTraceValidator.validateForUpdate(cacheTraceDto);
 
         final Long traceId = cacheTraceDto.getId();
         final CacheTrace cacheTraceEntity = cacheTraceDao.selectById(traceId);
 
-        if(cacheTraceEntity == null) throw this.createNotFoundException(traceId);
+        if(cacheTraceEntity == null) throw new EntityNotFoundException(ErrorCode.CACHE_TRACE_NOT_FOUND, traceId);
 
         if(cacheTraceDto.getName() != null) cacheTraceEntity.setName(cacheTraceDto.getName());
         if(cacheTraceDto.getDescription() != null) cacheTraceEntity.setDescription(cacheTraceDto.getDescription());
@@ -239,7 +243,7 @@ public class CacheTraceService {
     @Transactional(rollbackFor = CacheCruncherException.class)
     public void delete(final long traceId) throws DatabaseException, EntityNotFoundException {
 
-        if(cacheTraceDao.delete(traceId) == 0L) throw this.createNotFoundException(traceId);
+        if(cacheTraceDao.delete(traceId) == 0L) throw new EntityNotFoundException(ErrorCode.CACHE_TRACE_NOT_FOUND, traceId);
     }
 
     ///..
@@ -313,12 +317,6 @@ public class CacheTraceService {
     }
 
     ///..
-    private EntityNotFoundException createNotFoundException(final long traceId) {
-
-        return new EntityNotFoundException(new ErrorDetails(ErrorCode.CACHE_TRACE_NOT_FOUND, traceId));
-    }
-
-    ///..
     private boolean launchSimulations(
 
         final CacheSimulationArgumentsDto simulationArgumentsDto,
@@ -366,7 +364,7 @@ public class CacheTraceService {
 
             try {
 
-                final SimulationReport<CacheSimulationRootReportDto> result = simulation.getB().get(timeout, TimeUnit.SECONDS);
+                final SimulationReport<CacheSimulationRootReportDto> result = simulation.getB().get(timeout, TimeUnit.MILLISECONDS);
                 combinedReport.put(simulation.getA(), result);
 
                 if(!result.getStatus().equals(SimulationStatus.OK)) hasErrors = true;

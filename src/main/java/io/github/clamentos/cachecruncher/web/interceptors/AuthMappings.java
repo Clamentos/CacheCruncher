@@ -1,6 +1,9 @@
 package io.github.clamentos.cachecruncher.web.interceptors;
 
 ///
+import io.github.clamentos.cachecruncher.persistence.UserRole;
+
+///.
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -20,7 +23,7 @@ public class AuthMappings {
 
     ///
     private final Set<String> authenticationExcludedPaths;
-    private final Map<String, Boolean> authorizationMappings;
+    private final Map<String, UserRole> authorizationMappings;
 
     ///
     @Autowired
@@ -35,27 +38,27 @@ public class AuthMappings {
 
         authorizationMappings = new HashMap<>();
 
-        authorizationMappings.put("POST/cache-cruncher/user/refresh", false);
-        authorizationMappings.put("DELETE/cache-cruncher/user/logout", false);
-        authorizationMappings.put("DELETE/cache-cruncher/user/logout-all", false);
-        authorizationMappings.put("GET/cache-cruncher/user", true);
-        authorizationMappings.put("PATCH/cache-cruncher/user", true);
-        authorizationMappings.put("DELETE/cache-cruncher/user", false);
+        authorizationMappings.put("POST/cache-cruncher/user/refresh", UserRole.DEFAULT);
+        authorizationMappings.put("DELETE/cache-cruncher/user/logout", UserRole.DEFAULT);
+        authorizationMappings.put("DELETE/cache-cruncher/user/logout-all", UserRole.DEFAULT);
+        authorizationMappings.put("GET/cache-cruncher/user", UserRole.ADMIN);
+        authorizationMappings.put("PATCH/cache-cruncher/user", UserRole.ADMIN);
+        authorizationMappings.put("DELETE/cache-cruncher/user", UserRole.DEFAULT);
 
-        authorizationMappings.put("GET/cache-cruncher/status/metrics", true);
-        authorizationMappings.put("GET/cache-cruncher/status/metrics/history", true);
-        authorizationMappings.put("GET/cache-cruncher/status/logs", true);
-        authorizationMappings.put("GET/cache-cruncher/status/logs/count", true);
-        authorizationMappings.put("DELETE/cache-cruncher/status/metrics/history", true);
-        authorizationMappings.put("DELETE/cache-cruncher/status/logs", true);
+        authorizationMappings.put("GET/cache-cruncher/status/metrics", UserRole.ADMIN);
+        authorizationMappings.put("GET/cache-cruncher/status/metrics/history", UserRole.ADMIN);
+        authorizationMappings.put("GET/cache-cruncher/status/logs", UserRole.ADMIN);
+        authorizationMappings.put("GET/cache-cruncher/status/logs/count", UserRole.ADMIN);
+        authorizationMappings.put("DELETE/cache-cruncher/status/metrics/history", UserRole.ADMIN);
+        authorizationMappings.put("DELETE/cache-cruncher/status/logs", UserRole.ADMIN);
 
-        authorizationMappings.put("GET/cache-cruncher/cache-trace/simulation", false);
+        authorizationMappings.put("GET/cache-cruncher/cache-trace/simulation", UserRole.DEFAULT);
 
-        authorizationMappings.put("POST/cache-cruncher/cache-trace", false);
-        authorizationMappings.put("GET/cache-cruncher/cache-trace", false);
-        authorizationMappings.put("GET/cache-cruncher/cache-trace/search", false);
-        authorizationMappings.put("PATCH/cache-cruncher/cache-trace", true);
-        authorizationMappings.put("DELETE/cache-cruncher/cache-trace", true);
+        authorizationMappings.put("POST/cache-cruncher/cache-trace", UserRole.UPLOADER);
+        authorizationMappings.put("GET/cache-cruncher/cache-trace", UserRole.DEFAULT);
+        authorizationMappings.put("GET/cache-cruncher/cache-trace/search", UserRole.DEFAULT);
+        authorizationMappings.put("PATCH/cache-cruncher/cache-trace", UserRole.UPLOADER);
+        authorizationMappings.put("DELETE/cache-cruncher/cache-trace", UserRole.UPLOADER);
     }
 
     ///
@@ -71,9 +74,9 @@ public class AuthMappings {
     }
 
     ///..
-    public boolean requiresAdminPrivilege(final String path) {
+    public UserRole getMinimumRole(final String path) {
 
-        return authorizationMappings.getOrDefault(path, true);
+        return authorizationMappings.getOrDefault(path, UserRole.ADMIN);
     }
 
     ///

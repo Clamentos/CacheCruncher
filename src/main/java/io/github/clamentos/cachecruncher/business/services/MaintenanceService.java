@@ -1,4 +1,4 @@
-package io.github.clamentos.cachecruncher.utility;
+package io.github.clamentos.cachecruncher.business.services;
 
 ///
 import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
@@ -7,6 +7,9 @@ import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
 import io.github.clamentos.cachecruncher.persistence.daos.LogDao;
 import io.github.clamentos.cachecruncher.persistence.daos.MetricDao;
 
+///..
+import io.github.clamentos.cachecruncher.utility.PropertyProvider;
+
 ///.
 import java.time.ZonedDateTime;
 
@@ -14,10 +17,10 @@ import java.time.ZonedDateTime;
 import lombok.extern.slf4j.Slf4j;
 
 ///.
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.BeanCreationException;
 
 ///..
-import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.stereotype.Service;
@@ -39,13 +42,19 @@ public class MaintenanceService {
 
     ///
     @Autowired
-    public MaintenanceService(final LogDao logDao, final MetricDao metricDao, final Environment environment) {
+    public MaintenanceService(final LogDao logDao, final MetricDao metricDao, final PropertyProvider propertyProvider)
+    throws BeanCreationException {
 
         this.logDao = logDao;
         this.metricDao = metricDao;
 
-        logsRetention = environment.getProperty("cache-cruncher.monitoring.status.logsRetention", Long.class, 604_800_000L);
-        metricsRetention = environment.getProperty("cache-cruncher.monitoring.status.metricsRetention", Long.class, 604_800_000L);
+        logsRetention = propertyProvider.getLong("cache-cruncher.monitoring.status.logsRetention", 604_800_000L, 0L, Long.MAX_VALUE);
+
+        metricsRetention = propertyProvider.getLong(
+
+            "cache-cruncher.monitoring.status.metricsRetention",
+            604_800_000L, 0L, Long.MAX_VALUE
+        );
     }
 
     ///

@@ -1,12 +1,24 @@
 package io.github.clamentos.cachecruncher.error.exceptions;
 
 ///
+import io.github.clamentos.cachecruncher.error.ErrorCode;
+
+///.
+import java.io.Serializable;
+
+///
 public final class ValidationException extends CacheCruncherException {
 
     ///
-    public ValidationException(Throwable cause) {
+    public ValidationException(final ErrorCode errorCode, final Serializable... arguments) {
 
-        super(cause);
+        super(errorCode, arguments);
+    }
+
+    ///..
+    public ValidationException(final ErrorCode errorCode, final Throwable cause, final Serializable... arguments) {
+
+        super(errorCode, cause, arguments);
     }
 
     ///

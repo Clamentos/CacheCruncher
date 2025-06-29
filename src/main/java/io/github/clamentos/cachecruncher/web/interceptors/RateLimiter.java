@@ -1,6 +1,9 @@
 package io.github.clamentos.cachecruncher.web.interceptors;
 
 ///
+import io.github.clamentos.cachecruncher.utility.PropertyProvider;
+
+///.
 import java.net.InetAddress;
 
 ///..
@@ -13,10 +16,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 ///.
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.BeanCreationException;
 
 ///..
-import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.stereotype.Component;
@@ -42,32 +45,25 @@ public final class RateLimiter {
 
     ///
     @Autowired
-    public RateLimiter(final Environment environment) {
+    public RateLimiter(final PropertyProvider propertyProvider) throws BeanCreationException {
 
         requestCountersByIp = new ConcurrentHashMap<>();
         requestCountersBySession = new ConcurrentHashMap<>();
 
-        tokenCountByIp = environment.getProperty("cache-cruncher.rate-limiter.tokenCountByIp", Integer.class, 500);
-        tokenCountBySession = environment.getProperty("cache-cruncher.rate-limiter.tokenCountBySession", Integer.class, 100);
+        tokenCountByIp = propertyProvider.getInteger("cache-cruncher.rate-limiter.tokenCountByIp", 500, 1, Integer.MAX_VALUE);
+        tokenCountBySession = propertyProvider.getInteger("cache-cruncher.rate-limiter.tokenCountBySession", 100, 1, Integer.MAX_VALUE);
     }
 
     ///
     public boolean consumeByIp(final InetAddress ipAddress) {
 
-        final int count = requestCountersByIp.computeIfAbsent(ipAddress, _ -> new AtomicInteger(tokenCountByIp)).decrementAndGet();
-        return count >= 0;
+        return this.consume(requestCountersByIp, ipAddress, tokenCountByIp);
     }
 
     ///..
     public boolean consumeBySession(final String sessionId) {
 
-        final int count = requestCountersBySession
-
-            .computeIfAbsent(sessionId, _ -> new AtomicInteger(tokenCountBySession))
-            .decrementAndGet()
-        ;
-
-        return count >= 0;
+        return this.consume(requestCountersBySession, sessionId, tokenCountBySession);
     }
 
     ///..
@@ -78,6 +74,12 @@ public final class RateLimiter {
     }
 
     ///.
+    private <T> boolean consume(final Map<T, AtomicInteger> counters, final T key, final int tokenCount) {
+
+        return counters.computeIfAbsent(key, _ -> new AtomicInteger(tokenCount)).decrementAndGet() >= 0;
+    }
+
+    ///..
     private <T> void replenish(final Map<T, AtomicInteger> counters, final int tokenCount) {
 
         for(final Map.Entry<T, AtomicInteger> entry : counters.entrySet()) {

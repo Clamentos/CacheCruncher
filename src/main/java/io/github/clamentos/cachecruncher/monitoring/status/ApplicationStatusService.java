@@ -12,6 +12,8 @@ import io.github.clamentos.cachecruncher.configuration.StartupActions;
 
 ///..
 import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
+import io.github.clamentos.cachecruncher.error.exceptions.DeserializationException;
+import io.github.clamentos.cachecruncher.error.exceptions.SerializationException;
 import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
 
 ///..
@@ -65,11 +67,19 @@ import lombok.extern.slf4j.Slf4j;
 
 ///.
 import org.springframework.beans.factory.annotation.Autowired;
+
+///..
 import org.springframework.context.event.ContextClosedEvent;
+
 ///..
 import org.springframework.context.event.EventListener;
+
+///..
 import org.springframework.core.Ordered;
+
+///..
 import org.springframework.core.annotation.Order;
+
 ///..
 import org.springframework.core.task.TaskExecutor;
 
@@ -270,7 +280,7 @@ public class ApplicationStatusService {
 
     ///..
     public ResponsesInfoDto getResponsesInfoByFilter(final RangeSearchFilterDto responseInfoSearchFilter)
-    throws DatabaseException, ValidationException {
+    throws DatabaseException, DeserializationException, ValidationException {
 
         responseInfoSearchFilterValidator.validate(responseInfoSearchFilter);
 
@@ -385,15 +395,15 @@ public class ApplicationStatusService {
 
                         for(final Map.Entry<HttpStatus, LatencyDistribution> statusEntry : pathEntry.getValue().entrySet()) {
 
-                            metricEntities.add(new Metric(
+                            this.addMetricToDump(
 
-                                -1L,
+                                metricEntities,
                                 now,
                                 metricEntry.getKey(),
                                 pathEntry.getKey(),
-                                jsonMapper.serialize(statusEntry.getValue().getDistribution()),
-                                (short)statusEntry.getKey().value()
-                            ));
+                                statusEntry.getValue().getDistribution(),
+                                statusEntry.getKey()
+                            );
                         }
                     }
                 }
@@ -411,9 +421,39 @@ public class ApplicationStatusService {
             });
         }
 
-        catch(final DataAccessException | IllegalArgumentException exc) {
+        catch(final DataAccessException exc) {
 
             log.error("Could not perform metrics rollover to database, this batch will be lost", exc);
+        }
+    }
+
+    ///..
+    private void addMetricToDump(
+
+        final List<Metric> metricEntities,
+        final long now,
+        final Long metricEntryKey,
+        final String pathEntryKey,
+        final Map<String, Integer> distribution,
+        final HttpStatus httpStatus
+    ) {
+
+        try {
+
+            metricEntities.add(new Metric(
+
+                -1L,
+                now,
+                metricEntryKey,
+                pathEntryKey,
+                jsonMapper.serialize(distribution),
+                (short)httpStatus.value()
+            ));
+        }
+
+        catch(final SerializationException exc) {
+
+            log.error("Could not serialize metric, will skip this one", exc);
         }
     }
 

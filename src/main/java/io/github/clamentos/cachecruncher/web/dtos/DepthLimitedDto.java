@@ -2,7 +2,9 @@ package io.github.clamentos.cachecruncher.web.dtos;
 
 ///
 import io.github.clamentos.cachecruncher.error.ErrorCode;
-import io.github.clamentos.cachecruncher.error.ErrorDetails;
+
+///..
+import io.github.clamentos.cachecruncher.error.exceptions.DeserializationException;
 
 ///..
 import io.github.clamentos.cachecruncher.utility.MutableInt;
@@ -20,7 +22,7 @@ public abstract class DepthLimitedDto {
     private static final Map<Long, Map<Class<?>, MutableInt>> depthCounters = new ConcurrentHashMap<>();
 
     ///
-    protected DepthLimitedDto(final Class<?> childClass, final int limit) {
+    protected DepthLimitedDto(final Class<?> childClass, final int limit) throws DeserializationException {
 
         final long threadId = Thread.currentThread().threadId();
 
@@ -34,7 +36,7 @@ public abstract class DepthLimitedDto {
         if(depth >= limit) {
 
             this.clear(childClass, threadId);
-            throw new IllegalStateException(new ErrorDetails(ErrorCode.JSON_TOO_DEEP, childClass.getSimpleName(), limit));
+            throw new DeserializationException(ErrorCode.JSON_TOO_DEEP, childClass.getSimpleName(), limit);
         }
     }
 

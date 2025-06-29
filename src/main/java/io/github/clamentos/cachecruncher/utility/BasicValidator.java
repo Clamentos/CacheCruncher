@@ -2,7 +2,6 @@ package io.github.clamentos.cachecruncher.utility;
 
 ///
 import io.github.clamentos.cachecruncher.error.ErrorCode;
-import io.github.clamentos.cachecruncher.error.ErrorDetails;
 
 ///..
 import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
@@ -63,7 +62,7 @@ public abstract class BasicValidator {
     ///.
     protected ValidationException fail(final String message, final String name) {
 
-        return new ValidationException(new ErrorDetails(ErrorCode.VALIDATOR_BAD_FORMAT, name, message));
+        return new ValidationException(ErrorCode.VALIDATOR_BAD_FORMAT, name, message);
     }
 
     ///

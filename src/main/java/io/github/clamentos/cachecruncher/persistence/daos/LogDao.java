@@ -9,6 +9,9 @@ import io.github.clamentos.cachecruncher.monitoring.logging.LogLevel;
 ///..
 import io.github.clamentos.cachecruncher.persistence.entities.Log;
 
+///..
+import io.github.clamentos.cachecruncher.utility.PropertyProvider;
+
 ///.
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -22,10 +25,10 @@ import java.util.Map;
 import java.util.Set;
 
 ///.
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.BeanCreationException;
 
 ///..
-import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -52,9 +55,9 @@ public class LogDao extends Dao {
 
     ///
     @Autowired
-    public LogDao(final JdbcTemplate jdbcTemplate, final Environment environment) {
+    public LogDao(final JdbcTemplate jdbcTemplate, final PropertyProvider propertyProvider) throws BeanCreationException {
 
-        super(jdbcTemplate, environment);
+        super(jdbcTemplate, propertyProvider);
     }
 
     ///

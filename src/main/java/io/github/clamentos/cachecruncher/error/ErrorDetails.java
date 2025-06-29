@@ -25,5 +25,14 @@ public final class ErrorDetails extends Throwable {
         this.arguments = arguments;
     }
 
+    ///..
+    public ErrorDetails(final ErrorCode errorCode, final Throwable cause, final Serializable... arguments) {
+
+        super(cause);
+
+        this.errorCode = errorCode;
+        this.arguments = arguments;
+    }
+
     ///
 }

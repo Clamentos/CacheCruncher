@@ -8,6 +8,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 
 ///.
+import io.github.clamentos.cachecruncher.error.exceptions.DeserializationException;
+
+///..
 import io.github.clamentos.cachecruncher.persistence.entities.CacheTrace;
 import io.github.clamentos.cachecruncher.persistence.entities.CacheTraceBody;
 
@@ -58,7 +61,7 @@ public final class CacheTraceDto {
     }
 
     ///..
-    public CacheTraceDto(CacheTrace cacheTrace, JsonMapper mapper) throws IllegalArgumentException {
+    public CacheTraceDto(CacheTrace cacheTrace, JsonMapper mapper) throws DeserializationException {
 
         id = cacheTrace.getId();
         name = cacheTrace.getName();

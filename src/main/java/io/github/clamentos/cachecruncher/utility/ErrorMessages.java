@@ -37,5 +37,8 @@ public final class ErrorMessages {
     public static final String REPLACEMENT_NO_NOOP = "Replacement policy type cannot be NOOP";
     public static final String REPLACEMENT_NOOP = "Replacement policy type must be NOOP";
 
+    ///..
+    public static final String PROPERTY_NOT_FOUND = "Could not get the property: ";
+
     ///
 }

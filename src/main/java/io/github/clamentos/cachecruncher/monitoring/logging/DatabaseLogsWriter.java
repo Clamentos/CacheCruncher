@@ -5,6 +5,7 @@ import io.github.clamentos.cachecruncher.persistence.entities.Log;
 
 ///..
 import io.github.clamentos.cachecruncher.utility.MutableInt;
+import io.github.clamentos.cachecruncher.utility.PropertyProvider;
 
 ///..
 import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
@@ -39,10 +40,10 @@ import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 
 ///.
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.BeanCreationException;
 
 ///..
-import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.dao.DataAccessException;
@@ -68,11 +69,10 @@ public class DatabaseLogsWriter {
 
     ///..
     private final String logsPath;
-    private final int batchSize;
 
     ///
     @Autowired
-    public DatabaseLogsWriter(final LogDao logDao, final Environment environment) {
+    public DatabaseLogsWriter(final LogDao logDao, final PropertyProvider propertyProvider) throws BeanCreationException {
 
         this.logDao = logDao;
 
@@ -80,8 +80,7 @@ public class DatabaseLogsWriter {
         formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSS");
         zoneId = ZoneId.systemDefault();
 
-        logsPath = environment.getProperty("cache-cruncher.logsPath", String.class);
-        batchSize = environment.getProperty("cache-cruncher.jdbc.batchSize", Integer.class, 64);
+        logsPath = propertyProvider.getString("cache-cruncher.logsPath", null);
     }
 
     ///
@@ -102,6 +101,7 @@ public class DatabaseLogsWriter {
         }
 
         final MutableInt totalLogsWritten = new MutableInt();
+        final int batchSize = logDao.getBatchSize();
         int totalFilesCleaned = 0;
 
         try {
@@ -164,7 +164,7 @@ public class DatabaseLogsWriter {
         }
 
         try { logDao.insert(logs); }
-        catch(final DatabaseException exc) { throw new NonTransientDataAccessResourceException("unwrapped", exc.getCause()); }
+        catch(final DatabaseException exc) { throw new NonTransientDataAccessResourceException("Unwrapped", exc.getCause()); }
     }
 
     ///

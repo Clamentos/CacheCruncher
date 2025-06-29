@@ -2,12 +2,20 @@ package io.github.clamentos.cachecruncher.business.simulation.cache.commands;
 
 ///
 import io.github.clamentos.cachecruncher.error.ErrorCode;
-import io.github.clamentos.cachecruncher.error.ErrorDetails;
+
+///..
+import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
+
+///..
+import io.github.clamentos.cachecruncher.utility.ErrorMessages;
 
 ///.
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+
+///.
+import org.springframework.http.HttpStatus;
 
 ///
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -29,7 +37,7 @@ public enum CacheCommandType {
     private final String type;
 
     ///
-    public static CacheCommandType determineType(final String command) throws IllegalArgumentException {
+    public static CacheCommandType deserialize(final String command) throws ValidationException {
 
         if(command == null || command.isEmpty()) return null;
         final char opcode = command.charAt(0);
@@ -42,7 +50,13 @@ public enum CacheCommandType {
         if(opcode == 'F') return FLUSH;
         if(opcode == 'I') return INVALIDATE;
 
-        throw new IllegalArgumentException(new ErrorDetails(ErrorCode.UNKNOWN_COMMAND_TYPE, opcode));
+        throw new ValidationException(
+
+            ErrorCode.VALIDATOR_BAD_FORMAT,
+            HttpStatus.BAD_REQUEST,
+            command,
+            ErrorMessages.UNKNOWN_CC_TYPE
+        );
     }
 
     ///

@@ -7,6 +7,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 ///.
 import io.github.clamentos.cachecruncher.business.simulation.replacement.ReplacementPolicyType;
 
+///..
+import io.github.clamentos.cachecruncher.error.exceptions.DeserializationException;
+
 ///.
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -41,7 +44,8 @@ public final class CacheConfigurationDto extends MemoryConfigurationDto {
         @JsonProperty("associativity") final Integer associativity,
         @JsonProperty("replacementPolicyType") final ReplacementPolicyType replacementPolicyType,
         @JsonProperty("nextLevelConfiguration") final MemoryConfigurationDto nextLevelConfiguration
-    ) {
+
+    ) throws DeserializationException {
 
         super(accessTime);
 

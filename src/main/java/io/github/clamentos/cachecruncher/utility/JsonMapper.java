@@ -13,6 +13,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.clamentos.cachecruncher.error.ErrorCode;
 import io.github.clamentos.cachecruncher.error.ErrorDetails;
 
+///..
+import io.github.clamentos.cachecruncher.error.exceptions.DeserializationException;
+import io.github.clamentos.cachecruncher.error.exceptions.SerializationException;
+
 ///.
 import lombok.extern.slf4j.Slf4j;
 
@@ -40,7 +44,7 @@ public final class JsonMapper {
     }
 
     ///
-    public String serialize(final Object object) throws IllegalArgumentException {
+    public String serialize(final Object object) throws SerializationException {
 
         try {
 
@@ -49,18 +53,19 @@ public final class JsonMapper {
 
         catch(final JsonProcessingException exc) {
 
-            log.error("Could not serialize JSON", exc);
-            throw new IllegalArgumentException(new ErrorDetails(ErrorCode.SERIALIZATION_ERROR));
+            log.error("{}: {}", exc.getClass().getSimpleName(), exc.getMessage());
+            throw new SerializationException(ErrorCode.SERIALIZATION_ERROR);
         }
     }
 
     ///..
-    public <T> T deserialize(final String object, final TypeReference<T> type) throws IllegalArgumentException {
+    public <T> T deserialize(final String object, final TypeReference<T> type)
+    throws DeserializationException, IllegalArgumentException {
 
         if(type == null) {
 
             log.error(ErrorMessages.METHOD_ILLEGAL_ARGS);
-            throw new IllegalArgumentException(new ErrorDetails(ErrorCode.GENERIC, ErrorMessages.METHOD_ILLEGAL_ARGS));
+            throw new IllegalArgumentException(new ErrorDetails(ErrorCode.UNCATEGORIZED, ErrorMessages.METHOD_ILLEGAL_ARGS));
         }
 
         if(object == null) return null;
@@ -72,8 +77,8 @@ public final class JsonMapper {
 
         catch(final JsonProcessingException exc) {
 
-            log.error("Could not deserialize JSON", exc);
-            throw new IllegalArgumentException(new ErrorDetails(ErrorCode.DESERIALIZATION_ERROR));
+            log.error("{}: {}", exc.getClass().getSimpleName(), exc.getMessage());
+            throw new DeserializationException(ErrorCode.DESERIALIZATION_ERROR);
         }
     }
 

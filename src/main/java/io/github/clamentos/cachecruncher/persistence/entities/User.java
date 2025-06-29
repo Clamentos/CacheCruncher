@@ -1,6 +1,9 @@
 package io.github.clamentos.cachecruncher.persistence.entities;
 
 ///
+import io.github.clamentos.cachecruncher.persistence.UserRole;
+
+///.
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,7 +24,7 @@ public final class User {
     private final String email;
     private String password;
     private final short failedAccesses;
-    private final boolean isAdmin;
+    private final UserRole role;
 
     ///
 }

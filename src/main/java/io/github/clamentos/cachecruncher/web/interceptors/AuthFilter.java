@@ -5,7 +5,6 @@ import io.github.clamentos.cachecruncher.business.services.SessionService;
 
 ///..
 import io.github.clamentos.cachecruncher.error.ErrorCode;
-import io.github.clamentos.cachecruncher.error.ErrorDetails;
 
 ///..
 import io.github.clamentos.cachecruncher.error.exceptions.AuthenticationException;
@@ -17,6 +16,7 @@ import io.github.clamentos.cachecruncher.persistence.entities.Session;
 
 ///..
 import io.github.clamentos.cachecruncher.utility.ErrorMessages;
+import io.github.clamentos.cachecruncher.utility.PropertyProvider;
 
 ///.
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,10 +26,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.net.InetAddress;
 
 ///.
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.BeanCreationException;
 
 ///..
-import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.stereotype.Component;
@@ -45,7 +45,7 @@ import org.springframework.web.servlet.HandlerMapping;
 public class AuthFilter implements HandlerInterceptor {
 
     ///
-    private static final String ATTRIBUTE_NAME = "session";
+    private static final String SESSION_ATTRIBUTE_NAME = "session";
     private static final int COOKIE_LENGTH = 60;
     private static final int COOKIE_PREFIX_LENGTH = 16;
 
@@ -72,17 +72,18 @@ public class AuthFilter implements HandlerInterceptor {
         final SessionService sessionService,
         final RateLimiter rateLimiter,
         final AuthMappings authMappings,
-        final Environment environment
-    ) {
+        final PropertyProvider propertyProvider
+
+    ) throws BeanCreationException {
 
         this.sessionService = sessionService;
         this.rateLimiter = rateLimiter;
         this.authMappings = authMappings;
 
-        gatewaySecret = environment.getProperty("cache-cruncher.auth.gatewaySecret", String.class);
-        bypassAuth = environment.getProperty("cache-cruncher.auth.bypass", Boolean.class, false);
-        rateLimitingEnabled = environment.getProperty("cache-cruncher.rate-limiter.enabled", Boolean.class, false);
-        retryDelay = environment.getProperty("cache-cruncher.rate-limiter.retryDelay", Long.class, 60_000L);
+        gatewaySecret = propertyProvider.getString("cache-cruncher.auth.gatewaySecret", null);
+        bypassAuth = propertyProvider.getBoolean("cache-cruncher.auth.bypass", false);
+        rateLimitingEnabled = propertyProvider.getBoolean("cache-cruncher.rate-limiter.enabled", false);
+        retryDelay = propertyProvider.getLong("cache-cruncher.rate-limiter.retryDelay", 60_000L, 100L, Long.MAX_VALUE);
 
         checkSecret = gatewaySecret != null && !gatewaySecret.isEmpty();
     }
@@ -93,24 +94,25 @@ public class AuthFilter implements HandlerInterceptor {
     throws AuthenticationException, AuthorizationException, UnprocessableRequestException {
 
         final String path = request.getMethod() + request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
-        if(!authMappings.exists(path)) throw new UnprocessableRequestException(new ErrorDetails(ErrorCode.API_NOT_FOUND));
+        if(!authMappings.exists(path)) throw new UnprocessableRequestException(ErrorCode.API_NOT_FOUND, path);
 
         if(checkSecret && !gatewaySecret.equals(request.getHeader("Authorization"))) {
 
-            throw new AuthenticationException(new ErrorDetails(ErrorCode.INVALID_AUTH_HEADER));
+            throw new AuthenticationException(ErrorCode.INVALID_AUTH_HEADER);
         }
 
         if(!authMappings.requiresAuthentication(path)) {
 
             this.rateLimitByIp(request.getHeader("X-Real-IP"));
-            request.removeAttribute(ATTRIBUTE_NAME);
+            request.removeAttribute(SESSION_ATTRIBUTE_NAME);
         }
 
         else if(!bypassAuth) {
 
             final Session session = this.checkSession(request.getHeader("Cookie"), path);
+
             this.rateLimitBySession(session.getId());
-            request.setAttribute(ATTRIBUTE_NAME, session);
+            request.setAttribute(SESSION_ATTRIBUTE_NAME, session);
         }
 
         return true;
@@ -121,23 +123,17 @@ public class AuthFilter implements HandlerInterceptor {
 
         if(rateLimitingEnabled && !rateLimiter.consumeByIp(this.parseIp(ipHeader))) {
 
-            throw this.failRateLimit(rateLimiter.getTokenCountByIp());
+            throw new UnprocessableRequestException(ErrorCode.TOO_MANY_REQUESTS, rateLimiter.getTokenCountByIp(), retryDelay);
         }
     }
 
     ///..
     private InetAddress parseIp(final String ipHeader) throws UnprocessableRequestException {
 
-        if(ipHeader == null || ipHeader.isEmpty()) throw new UnprocessableRequestException(new ErrorDetails(ErrorCode.REAL_IP_MISSING));
+        if(ipHeader == null || ipHeader.isEmpty()) throw new UnprocessableRequestException(ErrorCode.REAL_IP_MISSING);
 
         try { return InetAddress.ofLiteral(ipHeader); }
-        catch(IllegalArgumentException _) { throw new UnprocessableRequestException(new ErrorDetails(ErrorCode.REAL_IP_MISSING)); }
-    }
-
-    ///..
-    private UnprocessableRequestException failRateLimit(final int count) {
-
-        return new UnprocessableRequestException(new ErrorDetails(ErrorCode.TOO_MANY_REQUESTS, count, retryDelay));
+        catch(final IllegalArgumentException exc) { throw new UnprocessableRequestException(ErrorCode.REAL_IP_MISSING, exc); }
     }
 
     ///..
@@ -145,13 +141,13 @@ public class AuthFilter implements HandlerInterceptor {
 
         if(authCookie == null || authCookie.length() != COOKIE_LENGTH || !authCookie.startsWith("sessionIdCookie")) {
 
-            throw new AuthenticationException(new ErrorDetails(ErrorCode.INVALID_AUTH_HEADER));
+            throw new AuthenticationException(ErrorCode.INVALID_AUTH_HEADER);
         }
 
         return sessionService.check(
 
             authCookie.substring(COOKIE_PREFIX_LENGTH),
-            authMappings.requiresAdminPrivilege(path),
+            authMappings.getMinimumRole(path),
             ErrorMessages.NOT_ENOUGH_PRIVILEGES
         );
     }
@@ -161,7 +157,7 @@ public class AuthFilter implements HandlerInterceptor {
 
         if(rateLimitingEnabled && !rateLimiter.consumeBySession(sessionId)) {
 
-            throw this.failRateLimit(rateLimiter.getTokenCountBySession());
+            throw new UnprocessableRequestException(ErrorCode.TOO_MANY_REQUESTS, rateLimiter.getTokenCountBySession(), retryDelay);
         }
     }
 

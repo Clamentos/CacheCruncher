@@ -12,6 +12,9 @@ import io.github.clamentos.cachecruncher.error.exceptions.EntityNotFoundExceptio
 import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
 
 ///..
+import io.github.clamentos.cachecruncher.persistence.UserRole;
+
+///..
 import io.github.clamentos.cachecruncher.persistence.entities.Session;
 import io.github.clamentos.cachecruncher.persistence.entities.User;
 
@@ -149,10 +152,10 @@ public class UserController {
 
     ///..
     @PatchMapping
-    public ResponseEntity<Void> updatePrivilege(@RequestParam final long userId, @RequestParam final boolean admin)
+    public ResponseEntity<Void> updatePrivilege(@RequestParam final long userId, @RequestParam final UserRole role)
     throws DatabaseException, EntityNotFoundException {
 
-        userService.updatePrivilege(userId, admin);
+        userService.updatePrivilege(userId, role);
         return ResponseEntity.ok().build();
     }
 

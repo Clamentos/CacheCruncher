@@ -7,6 +7,9 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 ///.
+import io.github.clamentos.cachecruncher.error.exceptions.DeserializationException;
+
+///..
 import io.github.clamentos.cachecruncher.web.dtos.DepthLimitedDto;
 
 ///.
@@ -33,7 +36,7 @@ public sealed class MemoryConfigurationDto extends DepthLimitedDto permits Cache
 
     ///
     @JsonCreator
-    public MemoryConfigurationDto(@JsonProperty("accessTime") final Long accessTime) {
+    public MemoryConfigurationDto(@JsonProperty("accessTime") final Long accessTime) throws DeserializationException {
 
         super(MemoryConfigurationDto.class, 8);
         this.accessTime = accessTime;

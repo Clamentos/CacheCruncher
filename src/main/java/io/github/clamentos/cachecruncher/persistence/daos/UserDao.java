@@ -4,7 +4,13 @@ package io.github.clamentos.cachecruncher.persistence.daos;
 import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
 
 ///..
+import io.github.clamentos.cachecruncher.persistence.UserRole;
+
+///..
 import io.github.clamentos.cachecruncher.persistence.entities.User;
+
+///..
+import io.github.clamentos.cachecruncher.utility.PropertyProvider;
 
 ///.
 import java.sql.JDBCType;
@@ -16,10 +22,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 ///.
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.BeanCreationException;
 
 ///..
-import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -37,24 +43,24 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserDao extends Dao {
 
     ///
-    private static final String INSERT_SQL = "INSERT INTO user (locked_until,created_at,validated_at,email,password,failed_accesses,is_admin) values (?,?,?,?,?,?,?)";
+    private static final String INSERT_SQL = "INSERT INTO user (locked_until,created_at,validated_at,email,password,failed_accesses,role) values (?,?,?,?,?,?,?)";
 
     private static final String EXISTS_SQL = "SELECT count(*) > 0 FROM user WHERE email = ?";
-    private static final String SELECT_PRIVILEGE_SQL = "SELECT is_admin FROM user WHERE id = ?";
+    private static final String SELECT_PRIVILEGE_SQL = "SELECT role FROM user WHERE id = ?";
 
-    private static final String SELECT_BY_EMAIL_SQL = "SELECT id,locked_until,created_at,validated_at,email,password,failed_accesses,is_admin FROM user WHERE email=?";
+    private static final String SELECT_BY_EMAIL_SQL = "SELECT id,locked_until,created_at,validated_at,email,password,failed_accesses,role FROM user WHERE email=?";
 
-    private static final String SELECT_ALL_SQL = "SELECT id,locked_until,created_at,validated_at,email,failed_accesses,is_admin FROM user";
+    private static final String SELECT_ALL_SQL = "SELECT id,locked_until,created_at,validated_at,email,failed_accesses,role FROM user";
 
     private static final String UPDATE_SQL = "UPDATE user SET locked_until=?, failed_accesses=? WHERE id=?";
     private static final String UPDATE_EMAIL_VALID_SQL = "UPDATE user SET validated_at=? WHERE email=?";
-    private static final String UPDATE_PRIVILEGE_SQL = "UPDATE user SET is_admin=? WHERE id=?";
+    private static final String UPDATE_ROLE_SQL = "UPDATE user SET role=? WHERE id=?";
 
     ///
     @Autowired
-    public UserDao(final JdbcTemplate jdbcTemplate, final Environment environment) {
+    public UserDao(final JdbcTemplate jdbcTemplate, final PropertyProvider propertyProvider) throws BeanCreationException {
 
-        super(jdbcTemplate, environment);
+        super(jdbcTemplate, propertyProvider);
     }
 
     ///
@@ -73,7 +79,7 @@ public class UserDao extends Dao {
                 preparedStatement.setString(4, user.getEmail());
                 preparedStatement.setString(5, user.getPassword());
                 preparedStatement.setShort(6, user.getFailedAccesses());
-                preparedStatement.setBoolean(7, user.isAdmin());
+                preparedStatement.setString(7, user.getRole().toString());
             })
         );
     }
@@ -95,7 +101,7 @@ public class UserDao extends Dao {
     }
 
     ///..
-    public Boolean getPrivilege(final long id) throws DatabaseException {
+    public UserRole getPrivilege(final long id) throws DatabaseException {
 
         return super.wrap(() ->
 
@@ -103,7 +109,7 @@ public class UserDao extends Dao {
 
                 SELECT_PRIVILEGE_SQL,
                 preparedStatement -> preparedStatement.setLong(1, id),
-                this::mapBoolean
+                this::mapUserRole
             )
         );
     }
@@ -162,13 +168,13 @@ public class UserDao extends Dao {
 
     ///..
     @Transactional(rollbackFor = DatabaseException.class)
-    public boolean updatePrivilege(final long id, final boolean privilege) throws DatabaseException {
+    public boolean updateRole(final long id, final UserRole role) throws DatabaseException {
 
         final int rowsAffected = super.wrap(() ->
 
-            super.getJdbcTemplate().update(UPDATE_PRIVILEGE_SQL, preparedStatement -> {
+            super.getJdbcTemplate().update(UPDATE_ROLE_SQL, preparedStatement -> {
 
-                preparedStatement.setBoolean(1, privilege);
+                preparedStatement.setString(1, role.toString());
                 preparedStatement.setLong(2, id);
             })
         );
@@ -207,6 +213,13 @@ public class UserDao extends Dao {
     }
 
     ///..
+    private UserRole mapUserRole(final ResultSet resultSet) throws SQLException {
+
+        if(resultSet.next()) return UserRole.valueOf(resultSet.getString(1));
+        return null;
+    }
+
+    ///..
     private User newUser(final ResultSet resultSet, final boolean mapPassword) throws SQLException {
 
         return new User(
@@ -218,7 +231,7 @@ public class UserDao extends Dao {
             resultSet.getString(5),
             mapPassword ? resultSet.getString(6) : null,
             resultSet.getShort(mapPassword ? 7 : 6),
-            resultSet.getBoolean(mapPassword ? 8 : 7)
+            UserRole.valueOf(resultSet.getString(mapPassword ? 8 : 7))
         );
     }
 

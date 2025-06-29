@@ -4,7 +4,13 @@ package io.github.clamentos.cachecruncher.persistence.daos;
 import io.github.clamentos.cachecruncher.error.exceptions.DatabaseException;
 
 ///..
+import io.github.clamentos.cachecruncher.persistence.UserRole;
+
+///..
 import io.github.clamentos.cachecruncher.persistence.entities.Session;
+
+///..
+import io.github.clamentos.cachecruncher.utility.PropertyProvider;
 
 ///.
 import java.sql.ResultSet;
@@ -16,10 +22,10 @@ import java.util.Collection;
 import java.util.List;
 
 ///.
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.BeanCreationException;
 
 ///..
-import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Autowired;
 
 ///..
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -37,17 +43,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class SessionDao extends Dao {
 
     ///
-    private static final String INSERT_SQL = "INSERT INTO session (user_id,expires_at,email,device,id,is_admin) values (?,?,?,?,?,?)";
-    private static final String SELECT_SQL = "SELECT user_id,expires_at,email,device,id,is_admin FROM session";
+    private static final String INSERT_SQL = "INSERT INTO session (user_id,expires_at,email,device,id,role) values (?,?,?,?,?,?)";
+    private static final String SELECT_SQL = "SELECT user_id,expires_at,email,device,id,role FROM session";
     private static final String DELETE_BY_ID_SQL = "DELETE FROM session WHERE id=?";
     private static final String DELETE_ALL_BY_IDS_SQL = "DELETE FROM session WHERE id IN (";
     private static final String DELETE_ALL_EXPIRED = "DELETE FROM session WHERE expires_at <= ?";
 
     ///
     @Autowired
-    public SessionDao(final JdbcTemplate jdbcTemplate, final Environment environment) {
+    public SessionDao(final JdbcTemplate jdbcTemplate, final PropertyProvider propertyProvider) throws BeanCreationException {
 
-        super(jdbcTemplate, environment);
+        super(jdbcTemplate, propertyProvider);
     }
 
     ///
@@ -63,7 +69,7 @@ public class SessionDao extends Dao {
                 preparedStatement.setString(3, session.getEmail());
                 preparedStatement.setString(4, session.getDevice());
                 preparedStatement.setString(5, session.getId());
-                preparedStatement.setBoolean(6, session.isAdmin());
+                preparedStatement.setString(6, session.getRole().toString());
             })
         );
     }
@@ -132,7 +138,7 @@ public class SessionDao extends Dao {
                 resultSet.getString(3),
                 resultSet.getString(4),
                 resultSet.getString(5),
-                resultSet.getBoolean(6)
+                UserRole.valueOf(resultSet.getString(6))
             ));
         }
 

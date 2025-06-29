@@ -70,7 +70,12 @@ CREATE TABLE IF NOT EXISTS user (
     email                   VARCHAR(64)      NOT NULL UNIQUE,
     password                VARCHAR(128)     NOT NULL,
     failed_accesses         SMALLINT         NOT NULL,
-    is_admin                BOOLEAN          NOT NULL
+
+    role                   ENUM(
+                                'DEFAULT',
+                                'UPLOADER',
+                                'ADMIN'
+                            )                NOT NULL
 );
 
 ---..
@@ -82,7 +87,12 @@ CREATE TABLE IF NOT EXISTS session (
     email                   VARCHAR(64)      NOT NULL,
     device                  VARCHAR(128)     NOT NULL,
     id                      VARCHAR(128)     PRIMARY KEY,
-    is_admin                BOOLEAN          NOT NULL,
+
+    role                   ENUM(
+                                'DEFAULT',
+                                'UPLOADER',
+                                'ADMIN'
+                            )                NOT NULL,
 
     CONSTRAINT session_fk FOREIGN KEY(user_id) REFERENCES user(id) ON DELETE CASCADE
 );
@@ -91,8 +101,10 @@ CREATE TABLE IF NOT EXISTS session (
 SET FOREIGN_KEY_CHECKS = 1;
 
 ---.
-INSERT INTO user (locked_until, created_at, validated_at, email, password, failed_accesses, is_admin) VALUES (NULL, 0, 0, 'admin@test.com', '$2a$10$cbe9tmKjwizZrYcZbwBGjuHdOh6IwTLeW12seIPXAKDBiMxu66YgG', 0, 1); -- Password123?!
+INSERT INTO user (locked_until, created_at, validated_at, email, password, failed_accesses, role) VALUES (NULL, 0, 0, 'admin@test.com', '$2a$10$cbe9tmKjwizZrYcZbwBGjuHdOh6IwTLeW12seIPXAKDBiMxu66YgG', 0, 'ADMIN'); -- Password123?!
 
-INSERT INTO user (locked_until, created_at, validated_at, email, password, failed_accesses, is_admin) VALUES (NULL, 0, 0, 'normal@test.com', '$2a$10$6DJuBQV.mIQCmTxEDJ6vFOBZzoFCAJHE.nzG8qwu9DhLZmvJCYCHW', 0, 0); -- Password123?!
+INSERT INTO user (locked_until, created_at, validated_at, email, password, failed_accesses, role) VALUES (NULL, 0, 0, 'normal@test.com', '$2a$10$6DJuBQV.mIQCmTxEDJ6vFOBZzoFCAJHE.nzG8qwu9DhLZmvJCYCHW', 0, 'DEFAULT'); -- Password123?!
+
+INSERT INTO user (locked_until, created_at, validated_at, email, password, failed_accesses, role) VALUES (NULL, 0, 0, 'uploader@test.com', '$2a$10$6DJuBQV.mIQCmTxEDJ6vFOBZzoFCAJHE.nzG8qwu9DhLZmvJCYCHW', 0, 'UPLOADER'); -- Password123?!
 
 ---

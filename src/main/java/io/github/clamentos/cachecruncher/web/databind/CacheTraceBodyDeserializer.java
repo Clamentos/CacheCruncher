@@ -5,7 +5,6 @@ import com.fasterxml.jackson.core.JsonParser;
 
 ///..
 import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 ///..
@@ -30,6 +29,7 @@ import io.github.clamentos.cachecruncher.error.ErrorCode;
 import io.github.clamentos.cachecruncher.error.ErrorDetails;
 
 ///..
+import io.github.clamentos.cachecruncher.error.exceptions.DeserializationException;
 import io.github.clamentos.cachecruncher.error.exceptions.ValidationException;
 
 ///..
@@ -67,19 +67,14 @@ public class CacheTraceBodyDeserializer extends StdDeserializer<CacheTraceBody> 
 
         return new CacheTraceBody(
 
-            this.deserializeSections(json.get("sections"), parser, context),
-            this.deserializeBody(json.get("body"), parser, context, true)
+            this.deserializeSections(json.get("sections"), parser),
+            this.deserializeBody(json.get("body"), parser, true)
         );
     }
 
     ///.
-    private MultiValueMap<String, CacheCommand> deserializeSections(
-
-        final JsonNode jsonNode,
-        final JsonParser parser,
-        final DeserializationContext context
-
-    ) throws IOException {
+    private MultiValueMap<String, CacheCommand> deserializeSections(final JsonNode jsonNode, final JsonParser parser)
+    throws IOException {
 
         if(jsonNode == null || jsonNode.isNull()) return null;
 
@@ -100,21 +95,15 @@ public class CacheTraceBodyDeserializer extends StdDeserializer<CacheTraceBody> 
 
         for(final Map.Entry<String, JsonNode> entry : entries) {
 
-            sections.put(entry.getKey(), this.deserializeBody(entry.getValue(), parser, context, false));
+            sections.put(entry.getKey(), this.deserializeBody(entry.getValue(), parser, false));
         }
 
         return sections;
     }
 
     ///..
-    private List<CacheCommand> deserializeBody(
-
-        final JsonNode jsonNode,
-        final JsonParser parser,
-        final DeserializationContext context,
-        final boolean allowRepeat
-
-    ) throws IOException {
+    private List<CacheCommand> deserializeBody(final JsonNode jsonNode, final JsonParser parser, final boolean allowRepeat)
+    throws IOException {
 
         if(jsonNode == null || jsonNode.isNull()) return null;
 
@@ -135,21 +124,15 @@ public class CacheTraceBodyDeserializer extends StdDeserializer<CacheTraceBody> 
 
         while(iterator.hasNext()) {
 
-            commands.add(this.deserializeCommand(iterator.next(), parser, context, allowRepeat));
+            commands.add(this.deserializeCommand(iterator.next(), parser, allowRepeat));
         }
 
         return commands;
     }
 
     ///..
-    private CacheCommand deserializeCommand(
-
-        final JsonNode jsonNode,
-        final JsonParser parser,
-        final DeserializationContext context,
-        final boolean allowRepeat
-
-    ) throws IOException {
+    private CacheCommand deserializeCommand(final JsonNode jsonNode, final JsonParser parser, final boolean allowRepeat)
+    throws IOException {
 
         if(jsonNode == null || jsonNode.isNull()) return null;
 
@@ -159,14 +142,17 @@ public class CacheTraceBodyDeserializer extends StdDeserializer<CacheTraceBody> 
         }
 
         final String commandString = jsonNode.textValue();
-        final CacheCommandType type = CacheCommandType.determineType(commandString);
+        CacheCommandType type;
+
+        try { type = CacheCommandType.deserialize(commandString); }
+        catch(final ValidationException exc) { throw new DeserializationException(ErrorCode.VALIDATOR_BAD_FORMAT, exc, commandString); }
 
         switch(type) {
 
             case READ, WRITE, PREFETCH, INVALIDATE:
 
                 final String[] splits = commandString.split(" ");
-                if(splits.length != 2) throw this.fail(context, commandString, ErrorMessages.MALFORMED_CC_TYPE_B);
+                if(splits.length != 2) throw this.fail(commandString, ErrorMessages.MALFORMED_CC_TYPE_B);
 
             return new CacheCommandTypeB(type, Short.parseShort(splits[0].substring(1)), Long.parseLong(splits[1], 16));
 
@@ -183,7 +169,7 @@ public class CacheTraceBodyDeserializer extends StdDeserializer<CacheTraceBody> 
                 }
 
                 final String[] splits2 = commandString.split("#");
-                if(splits2.length != 3) throw this.fail(context, commandString, ErrorMessages.MALFORMED_CC_TYPE_C);
+                if(splits2.length != 3) throw this.fail(commandString, ErrorMessages.MALFORMED_CC_TYPE_C);
 
             return new CacheCommandTypeC(type, Integer.parseInt(splits2[1]), splits2[2]);
 
@@ -191,19 +177,14 @@ public class CacheTraceBodyDeserializer extends StdDeserializer<CacheTraceBody> 
             case FLUSH: return new CacheCommand(type);
 
             case null: return null;
-            default: throw this.fail(context, commandString, ErrorMessages.UNKNOWN_CC_TYPE);
+            default: throw this.fail(commandString, ErrorMessages.UNKNOWN_CC_TYPE);
         }
     }
 
     ///..
-    private JsonMappingException fail(final DeserializationContext context, final String commandString, String message) {
+    private DeserializationException fail(final String commandString, final String message) {
 
-        return JsonMappingException.from(context, commandString, new ValidationException(new ErrorDetails(
-
-            ErrorCode.VALIDATOR_BAD_FORMAT,
-            commandString,
-            message
-        )));
+        return new DeserializationException(ErrorCode.VALIDATOR_BAD_FORMAT, commandString, message);
     }
 
     ///
